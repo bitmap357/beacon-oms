@@ -1,4 +1,4 @@
-/** Lighthouse mark. File: public/brand/mark.svg (transparent). Favicon: src/app/icon.svg */
+/** Lighthouse mark: public/brand/mark.png (platform icon, outer black square removed). Favicon: src/app/icon.png */
 import { cn } from "@/lib/utils";
 
 export function BrandMark({
@@ -15,7 +15,7 @@ export function BrandMark({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/mark.svg"
+        src="/brand/mark.png"
         alt="Beacon"
         width={size}
         height={size}
@@ -36,5 +36,19 @@ export function BrandWordmark({ className }: { className?: string }) {
         </p>
       </div>
     </div>
+  );
+}
+
+/** Full lockup: pin + Beacon + tagline from public/brand/lockup.png */
+export function BrandLockup({ className }: { className?: string }) {
+  return (
+    <span className={cn("inline-flex", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/lockup.png"
+        alt="Beacon Operations Management System"
+        className="h-auto w-full object-contain"
+      />
+    </span>
   );
 }

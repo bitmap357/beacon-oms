@@ -3,7 +3,7 @@
 /** Sign-in UI (split panel + theme toggle). Submit goes to loginAction in src/app/(auth)/actions.ts. */
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BrandMark } from "@/components/brand";
+import { BrandLockup } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -28,29 +28,35 @@ export function LoginPanel() {
         <ThemeToggle />
       </div>
       <div className="grid min-h-screen lg:grid-cols-2">
-        <section className="relative hidden overflow-hidden bg-[#070b14] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="pointer-events-none absolute -right-16 top-16 h-72 w-72 rounded-full bg-brand/30 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-10 left-10 h-56 w-56 rounded-full bg-gold/20 blur-3xl" />
-          <div className="relative">
-            <BrandMark size={72} />
-            <p className="font-heading mt-6 text-4xl">Beacon</p>
-            <p className="mt-2 text-sm text-[#9aa3b2]">Operations Management System</p>
-          </div>
-          <div className="relative max-w-md">
-            <p className="font-heading text-3xl leading-snug">
-              See every facility, incident, and visit in one place.
-            </p>
-            <p className="mt-4 text-sm text-[#9aa3b2]">
-              Spagad teams log site visits, track actions, and generate reports without losing the thread.
-            </p>
+        <section className="relative hidden min-h-screen overflow-hidden bg-[#070b14] text-white lg:flex">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/signin-panel.png"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-[center_35%]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-[#070b14]/30 to-black/15" />
+          <div className="relative z-10 flex min-h-screen w-full flex-col px-14 py-16">
+            <div className="flex flex-1 items-center justify-center">
+              <div className="w-full max-w-[460px] rounded-[28px] bg-[#070b14]/55 px-8 py-10 ring-1 ring-white/10 backdrop-blur-md">
+                <BrandLockup className="w-full" />
+              </div>
+            </div>
+            <div className="max-w-lg">
+              <p className="font-heading text-3xl leading-snug">
+                See every facility, incident, and visit in one place.
+              </p>
+              <p className="mt-4 text-sm text-white/75">
+                Spagad teams log site visits, track actions, and generate reports
+                without losing the thread.
+              </p>
+            </div>
           </div>
         </section>
         <section className="flex items-center justify-center px-4 py-16">
           <div className="w-full max-w-md">
             <div className="mb-8 lg:hidden">
-              <BrandMark size={48} />
-              <p className="font-heading mt-3 text-2xl text-ink">Beacon</p>
-              <p className="text-[13px] text-slate">Operations Management System</p>
+              <BrandLockup className="mx-auto w-52" />
             </div>
             <div className="rounded-[16px] border border-hairline bg-surface-raised p-7 shadow-[0_18px_50px_rgba(12,20,36,0.08)]">
               <h1 className="font-heading mb-1 text-2xl text-ink">Sign in</h1>

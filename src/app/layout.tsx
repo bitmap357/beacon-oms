@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     template: "%s · Beacon",
   },
   description: "Spagad Technologies operations management system",
-  icons: { icon: "/brand/mark.svg", shortcut: "/brand/mark.svg", apple: "/brand/mark.svg" },
+  icons: { icon: "/brand/mark.png", shortcut: "/brand/mark.png", apple: "/brand/mark.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
