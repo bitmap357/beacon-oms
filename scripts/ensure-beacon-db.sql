@@ -1,0 +1,2 @@
+IF DB_ID('beacon') IS NULL CREATE DATABASE beacon;
+GO

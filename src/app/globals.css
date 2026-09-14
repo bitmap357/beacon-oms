@@ -1,0 +1,151 @@
+/* Beacon tokens. Dark mode: html.dark (toggled in theme-toggle + a snippet in layout.tsx). */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --ink: #1c2430;
+  --slate: #5b6472;
+  --hairline: #e3e1d9;
+  --surface: #f4f5f3;
+  --surface-raised: #ffffff;
+  --brand: #1558d6;
+  --brand-deep: #0b3ba8;
+  --gold: #e8b923;
+  --status-healthy-bg: #e9f2ec;
+  --status-healthy-fg: #1d6b45;
+  --status-attention-bg: #fbefe3;
+  --status-attention-fg: #854f0b;
+  --status-atrisk-bg: #fbe7dd;
+  --status-atrisk-fg: #8a3a16;
+  --status-critical-bg: #fbe9e9;
+  --status-critical-fg: #791f1f;
+  --status-inactive-bg: #eeeeec;
+  --status-inactive-fg: #5b6472;
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ink);
+  --muted: #ecece8;
+  --muted-foreground: var(--slate);
+  --accent: #e8eefc;
+  --accent-foreground: var(--brand-deep);
+  --destructive: #791f1f;
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--brand);
+  --radius: 12px;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --ink: #e8edf5;
+  --slate: #9aa3b2;
+  --hairline: #1d2a44;
+  --surface: #070b14;
+  --surface-raised: #0d1524;
+  --brand: #3d7cff;
+  --brand-deep: #8eb4ff;
+  --gold: #e8b923;
+  --status-healthy-bg: #123025;
+  --status-healthy-fg: #8fd4ae;
+  --status-attention-bg: #32240f;
+  --status-attention-fg: #f0c48a;
+  --status-atrisk-bg: #35180e;
+  --status-atrisk-fg: #f0b090;
+  --status-critical-bg: #351414;
+  --status-critical-fg: #f3c6c6;
+  --status-inactive-bg: #161b26;
+  --status-inactive-fg: #9aa3b2;
+  --muted: #121a2b;
+  --accent: #152445;
+  --accent-foreground: #8eb4ff;
+  --destructive: #f3c6c6;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-slate: var(--slate);
+  --color-hairline: var(--hairline);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-gold: var(--gold);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-status-healthy-bg: var(--status-healthy-bg);
+  --color-status-healthy-fg: var(--status-healthy-fg);
+  --color-status-attention-bg: var(--status-attention-bg);
+  --color-status-attention-fg: var(--status-attention-fg);
+  --color-status-atrisk-bg: var(--status-atrisk-bg);
+  --color-status-atrisk-fg: var(--status-atrisk-fg);
+  --color-status-critical-bg: var(--status-critical-bg);
+  --color-status-critical-fg: var(--status-critical-fg);
+  --color-status-inactive-bg: var(--status-inactive-bg);
+  --color-status-inactive-fg: var(--status-inactive-fg);
+  --font-sans: var(--font-plex-sans);
+  --font-heading: var(--font-space-grotesk);
+  --font-mono: var(--font-plex-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-plex-sans), "IBM Plex Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+.font-heading {
+  font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+  font-weight: 600;
+}
+
+code,
+.font-mono,
+.tabular-ids {
+  font-family: var(--font-plex-mono), "IBM Plex Mono", monospace;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand) 18%, white);
+}
+
+.dark ::selection {
+  background: color-mix(in srgb, var(--brand) 28%, black);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

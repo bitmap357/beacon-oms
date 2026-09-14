@@ -1,0 +1,395 @@
+// Beacon SQL Server schema.
+//
+// Prisma cannot use enum or Json on SQL Server, so:
+//   - role/status/type fields are String (allowed values: src/lib/db-types.ts)
+//   - report.content, audit snapshots, QA items, handovers are NVARCHAR JSON
+//   - relations use onDelete: NoAction (SQL Server rejects multiple cascade paths)
+//
+// After edits: npx prisma db push && npx prisma generate
+// Seed demo data: npx prisma db seed   (prisma/seed.ts)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// Login accounts. role = UserRole string (PM_QA, DEVELOPER, MANAGEMENT, ADMIN).
+model User {
+  id                      String    @id @default(cuid())
+  name                    String
+  email                   String    @unique
+  passwordHash            String
+  role                    String
+  isActive                Boolean   @default(true)
+  failedLoginCount        Int       @default(0)
+  lockedUntil             DateTime?
+  mustResetPassword       Boolean   @default(false)
+  passwordUpdatedAt       DateTime  @default(now())
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+  lastLoginAt             DateTime?
+  source                  String    @default("NATIVE")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  facilityAssignments   FacilityAssignment[]
+  activitiesResponsible Activity[]             @relation("ActivityResponsible")
+  activitiesCreated     Activity[]             @relation("ActivityCreatedBy")
+  incidentsReported     Incident[]             @relation("IncidentReporter")
+  incidentsAssigned     Incident[]             @relation("IncidentAssignee")
+  actionsOwned          Action[]
+  reportsAuthored       Report[]
+  qaRecords             QARecord[]
+  handoversFrom         Handover[]             @relation("HandoverFrom")
+  handoversTo           Handover[]             @relation("HandoverTo")
+  handoversInitiated    Handover[]             @relation("HandoverInitiator")
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  attachmentsUploaded   Attachment[]           @relation("AttachmentUploader")
+  activityParticipants  ActivityParticipant[]
+}
+
+// Client org → regions → facilities → optional branches. Incidents hang off facility + branch.
+model ClientOrganization {
+  id         String     @id @default(cuid())
+  name       String
+  source     String     @default("NATIVE")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  regions    Region[]
+  facilities Facility[]
+}
+
+// Geographic grouping under a client org.
+model Region {
+  id                   String             @id @default(cuid())
+  name                 String
+  clientOrganizationId String
+  clientOrganization   ClientOrganization @relation(fields: [clientOrganizationId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  facilities           Facility[]
+
+  @@index([clientOrganizationId])
+}
+
+// Site Spagad supports. status/calculatedStatus = FacilityHealth strings.
+model Facility {
+  id                           String   @id @default(cuid())
+  name                         String
+  clientOrganizationId         String
+  clientOrganization           ClientOrganization @relation(fields: [clientOrganizationId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  regionId                     String?
+  region                       Region?  @relation(fields: [regionId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  location                     String?
+  contactInfo                  String?
+  status                       String   @default("HEALTHY")
+  calculatedStatus             String   @default("HEALTHY")
+  statusOverride               Boolean  @default(false)
+  statusOverrideReason         String?
+  statusOverrideById           String?
+  statusOverrideAt             DateTime?
+  managementRequestedUrgentVisit Boolean @default(false)
+  source                       String   @default("NATIVE")
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  branches    FacilityBranch[]
+  assignments FacilityAssignment[]
+  activities  Activity[]
+  incidents   Incident[]
+  actions     Action[]
+  reports     Report[]
+  qaRecords   QARecord[]
+  handovers   Handover[]
+
+  @@index([clientOrganizationId])
+  @@index([regionId])
+  @@index([status])
+  @@index([name])
+}
+
+// Optional sub-location (ward, lab). Incidents can point here.
+model FacilityBranch {
+  id         String   @id @default(cuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  name       String
+  location   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  incidents  Incident[]
+
+  @@unique([facilityId, name])
+  @@index([facilityId])
+}
+
+// Who covers a facility. assignmentType PM_QA | DEVELOPER. One active lead is enforced in API code.
+model FacilityAssignment {
+  id             String   @id @default(cuid())
+  facilityId     String
+  facility       Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  assignmentType String
+  isLead         Boolean  @default(false)
+  startDate      DateTime @default(now())
+  endDate        DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([facilityId, isLead, isActive])
+  @@index([userId, isActive])
+}
+
+// Timed work at a facility. type SITE_VISIT is what the calendar logs as a "visit".
+model Activity {
+  id                String   @id @default(cuid())
+  facilityId        String
+  facility          Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  type              String
+  date              DateTime
+  startTime         DateTime?
+  endTime           DateTime?
+  responsibleUserId String
+  responsibleUser   User     @relation("ActivityResponsible", fields: [responsibleUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  description       String   @db.NVarChar(Max)
+  findings          String?  @db.NVarChar(Max)
+  notes             String?  @db.NVarChar(Max)
+  source            String   @default("NATIVE")
+  createdById       String
+  createdBy         User     @relation("ActivityCreatedBy", fields: [createdById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  participants ActivityParticipant[]
+  incidents    Incident[]
+  reports      Report[]
+  attachments  Attachment[]
+
+  @@index([facilityId, date])
+}
+
+// Extra people on a visit besides the responsible user.
+model ActivityParticipant {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+}
+
+// Ticket. status transitions live in src/app/api/incidents/[id]/route.ts (TRANSITIONS map).
+model Incident {
+  id                String          @id @default(cuid())
+  title             String
+  facilityId        String
+  facility          Facility        @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  branchId          String?
+  branch            FacilityBranch? @relation(fields: [branchId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  description       String          @db.NVarChar(Max)
+  reporterId        String
+  reporter          User            @relation("IncidentReporter", fields: [reporterId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  priority          String
+  status            String          @default("NEW")
+  assigneeId        String?
+  assignee          User?           @relation("IncidentAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  relatedActivityId String?
+  relatedActivity   Activity?       @relation(fields: [relatedActivityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  dueDate           DateTime?
+  resolutionInfo    String?         @db.NVarChar(Max)
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  source            String          @default("NATIVE")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  history     IncidentHistory[]
+  actions     Action[]
+  reports     Report[]
+  qaRecords   QARecord[]
+  attachments Attachment[]
+
+  @@index([facilityId, status])
+  @@index([branchId])
+  @@index([priority, status])
+  @@index([title])
+}
+
+// Field-level change log for an incident (status, assignee, etc.).
+model IncidentHistory {
+  id           String   @id @default(cuid())
+  incidentId   String
+  incident     Incident @relation(fields: [incidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  changedById  String
+  fieldChanged String
+  oldValue     String?  @db.NVarChar(Max)
+  newValue     String?  @db.NVarChar(Max)
+  changedAt    DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+// Follow-up work. dueDate is what the calendar shows in red.
+model Action {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.NVarChar(Max)
+  facilityId  String
+  facility    Facility  @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  sourceType  String?
+  sourceId    String?
+  incidentId  String?
+  incident    Incident? @relation(fields: [incidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  priority    String
+  dueDate     DateTime
+  status      String    @default("NOT_STARTED")
+  completedAt DateTime?
+  notes       String?   @db.NVarChar(Max)
+  source      String    @default("NATIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([facilityId, status])
+  @@index([ownerId, status])
+  @@index([dueDate, status])
+}
+
+// Structured write-up. content is JSON text; sections per type in src/lib/reportTemplates.
+model Report {
+  id          String    @id @default(cuid())
+  type        String
+  facilityId  String
+  facility    Facility  @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  activityId  String?
+  activity    Activity? @relation(fields: [activityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  incidentId  String?
+  incident    Incident? @relation(fields: [incidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  date        DateTime
+  periodStart DateTime?
+  periodEnd   DateTime?
+  status      String    @default("DRAFT")
+  content     String    @db.NVarChar(Max)
+  source      String    @default("NATIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  attachments Attachment[]
+
+  @@index([facilityId, type])
+}
+
+// Files in MinIO/S3. relatedType picks which FK is set.
+model Attachment {
+  id            String     @id @default(cuid())
+  fileName      String
+  fileType      String
+  fileSizeBytes Int
+  s3Key         String
+  uploadedById  String
+  uploadedBy    User       @relation("AttachmentUploader", fields: [uploadedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  relatedType   String
+  activityId    String?
+  activity      Activity?  @relation(fields: [activityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  incidentId    String?
+  incident      Incident?  @relation(fields: [incidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  reportId      String?
+  report        Report?    @relation(fields: [reportId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  qaRecordId    String?
+  qaRecord      QARecord?  @relation(fields: [qaRecordId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  createdAt     DateTime   @default(now())
+  deletedAt     DateTime?
+  deletedById   String?
+
+  @@index([relatedType, activityId])
+  @@index([relatedType, incidentId])
+}
+
+// QA verification against an incident. itemsTested is JSON text.
+model QARecord {
+  id                  String    @id @default(cuid())
+  facilityId          String
+  facility            Facility  @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  relatedIncidentId   String?
+  relatedIncident     Incident? @relation(fields: [relatedIncidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  qaUserId            String
+  qaUser              User     @relation(fields: [qaUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  qaDate              DateTime
+  itemsTested         String?   @db.NVarChar(Max)
+  result              String
+  findings            String?   @db.NVarChar(Max)
+  requiredCorrections String?   @db.NVarChar(Max)
+  retestDate          DateTime?
+  finalVerification   Boolean   @default(false)
+  source              String    @default("NATIVE")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  attachments Attachment[]
+
+  @@index([facilityId, result])
+}
+
+// Facility ownership transfer. summarySnapshot is JSON text of open work at that moment.
+model Handover {
+  id              String   @id @default(cuid())
+  facilityId      String
+  facility        Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  fromUserId      String?
+  fromUser        User?    @relation("HandoverFrom", fields: [fromUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  toUserId        String?
+  toUser          User?    @relation("HandoverTo", fields: [toUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  initiatedById   String
+  initiatedBy     User     @relation("HandoverInitiator", fields: [initiatedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  summarySnapshot String   @db.NVarChar(Max)
+  notes           String?  @db.NVarChar(Max)
+  createdAt       DateTime @default(now())
+
+  @@index([facilityId])
+}
+
+// In-app + email alerts. Created via src/lib/notifications.ts.
+model Notification {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  type        String
+  relatedType String?
+  relatedId   String?
+  message     String  @db.NVarChar(Max)
+  isRead      Boolean @default(false)
+  emailSent   Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// Never update rows — only insert. previousValue/newValue are JSON strings.
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  action        String
+  entityType    String
+  entityId      String
+  previousValue String?  @db.NVarChar(Max)
+  newValue      String?  @db.NVarChar(Max)
+  ipAddress     String?
+  userAgent     String?  @db.NVarChar(Max)
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

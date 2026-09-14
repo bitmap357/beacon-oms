@@ -1,0 +1,33 @@
+# SRS 40 acceptance checklist
+
+- [ ] Users can create and manage facilities
+- [ ] Facility detail shows complete operational information
+- [ ] Current team assignments are visible
+- [ ] Assignment history is preserved
+- [ ] Multiple PM/QA members can be assigned to one facility
+- [ ] Multiple developers can be assigned to one facility
+- [ ] Exactly one Lead PM/QA can be active for a facility
+- [ ] Assignment changes are recorded historically
+- [ ] Users can record operational activities
+- [ ] Activities are linked to facilities
+- [ ] Users can view facility activity history
+- [ ] Users can report incidents
+- [ ] Incidents can be assigned
+- [ ] Incident status can be updated
+- [ ] Incident history is preserved
+- [ ] Incidents can be resolved and closed
+- [ ] QA verification can be recorded
+- [ ] Users can create follow-up actions
+- [ ] Actions have owners and due dates
+- [ ] Overdue actions are automatically identifiable
+- [ ] Dashboard information reflects actual system records
+- [ ] Management can view operational metrics
+- [ ] Users can identify facilities requiring attention
+- [ ] Users can initiate a facility handover
+- [ ] The system summarizes relevant facility information
+- [ ] Handover history is preserved
+- [ ] Existing structured data can be imported (`scripts/migrate-csv.ts`)
+- [ ] Migrated records are visible and marked LEGACY
+- [ ] Users must authenticate
+- [ ] Access is controlled by role and facility-based permissions
+- [ ] Important changes are auditable
