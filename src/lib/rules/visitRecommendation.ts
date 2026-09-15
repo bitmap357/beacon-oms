@@ -5,7 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { daysBetween } from "@/lib/utils";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
 export type VisitResult = {
   recommendation: "NOT_DUE" | "VISIT_RECOMMENDED" | "VISIT_DUE" | "URGENT_VISIT";
@@ -13,7 +13,7 @@ export type VisitResult = {
   daysSinceLastVisit: number | null;
 };
 
-const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN = OPEN_INCIDENT_STATUS_QUERY;
 
 export async function calculateVisitRecommendation(
   facilityId: string,
@@ -40,7 +40,7 @@ export async function calculateVisitRecommendation(
         where: {
           facilityId,
           dueDate: { lt: new Date() },
-          status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+          status: { in: [...OPEN_ACTION_STATUSES] },
         },
       }),
       client.incident.count({

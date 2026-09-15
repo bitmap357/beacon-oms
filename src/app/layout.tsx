@@ -17,7 +17,7 @@
  * Report layout:        src/lib/reportTemplates/index.ts
  * Nightly jobs:         src/worker.ts
  */
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -49,6 +49,16 @@ export const metadata: Metadata = {
   icons: { icon: "/brand/mark.png", shortcut: "/brand/mark.png", apple: "/brand/mark.png" },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f1e6" },
+    { media: "(prefers-color-scheme: dark)", color: "#070b14" },
+  ],
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -66,7 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full bg-surface font-sans text-ink">
         {children}
-        <Toaster position="top-right" />
+        <Toaster position="top-center" offset={12} mobileOffset={12} />
       </body>
     </html>
   );

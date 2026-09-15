@@ -58,7 +58,7 @@ export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
     };
   }, [data, id]);
 
-  return <div id={id} ref={ref} className="h-80 w-full" />;
+  return <div id={id} ref={ref} className="h-56 w-full sm:h-80" />;
 }
 
 export function ChartKey({
@@ -150,7 +150,7 @@ export function ColumnChart({
     };
   }, [data, id, categoryField, valueField]);
 
-  return <div id={id} ref={ref} className="h-72 w-full" />;
+  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
 }
 
 export function LineChart({
@@ -230,7 +230,7 @@ export function LineChart({
     };
   }, [data, id, categoryField, valueField, seriesName]);
 
-  return <div id={id} ref={ref} className="h-72 w-full" />;
+  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
 }
 
 export function HorizontalBarChart({
@@ -299,5 +299,5 @@ export function HorizontalBarChart({
     };
   }, [data, id, categoryField, valueField]);
 
-  return <div id={id} ref={ref} className="h-72 w-full" />;
+  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
 }

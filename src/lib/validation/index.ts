@@ -4,6 +4,13 @@
  */
 import { z } from "zod";
 import { CREDENTIAL_HINT, CREDENTIAL_COMPLEXITY } from "@/lib/password";
+import { INCIDENT_STATUS_ALIASES } from "@/lib/incident-status";
+
+const incidentStatusSchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toUpperCase().replaceAll(" ", "_");
+  return INCIDENT_STATUS_ALIASES[normalized] ?? normalized;
+}, z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]));
 
 export const passwordSchema = z
   .string()
@@ -110,7 +117,7 @@ export const incidentSchema = z.object({
   facilityId: z.string().min(1),
   branchId: z.string().optional().nullable(),
   description: z.string().trim().min(1, "Incident is required"),
-  status: z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]),
+  status: incidentStatusSchema,
   reportedAt: z.string().min(1),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().nullable(),
   assigneeId: z.string().optional().nullable(),
@@ -120,7 +127,7 @@ export const incidentSchema = z.object({
 });
 
 export const incidentPatchSchema = incidentSchema.partial().extend({
-  status: z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]).optional(),
+  status: incidentStatusSchema.optional(),
   resolutionInfo: z.string().optional().nullable(),
   comment: z.string().trim().optional().nullable(),
 });

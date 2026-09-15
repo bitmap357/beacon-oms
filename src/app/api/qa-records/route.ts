@@ -7,6 +7,7 @@ import { qaRecordSchema } from "@/lib/validation";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
 import { notifyUsers } from "@/lib/notifications";
 import { toJsonString } from "@/lib/db-types";
+import { isClosedIncidentStatus } from "@/lib/incident-status";
 
 export async function GET(request: Request) {
   try {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
         const passed = body.result === "PASSED" || body.result === "PASSED_WITH_ISSUES";
         let incidentStatus: string | null = null;
         if (passed) incidentStatus = "CLOSED";
-        else if (previous?.status === "CLOSED") incidentStatus = "REOPENED";
+        else if (previous && isClosedIncidentStatus(previous.status)) incidentStatus = "REOPENED";
         if (incidentStatus) {
           const incident = await tx.incident.update({
             where: { id: body.relatedIncidentId },

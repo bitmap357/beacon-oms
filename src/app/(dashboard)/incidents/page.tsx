@@ -3,15 +3,13 @@ import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
-import { Table, TBody, TH, THead, TR } from "@/components/ui/table";
 import { IncidentForm, IncidentImportForm } from "@/components/incident-forms";
-import { IncidentRow } from "@/components/incident-row";
+import { IncidentInbox } from "@/components/incident-row";
 import { IncidentFilters } from "@/components/incident-filters";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, incidentStatusesForFilter } from "@/lib/incident-status";
 
 export default async function IncidentsPage({
   searchParams,
@@ -31,18 +29,20 @@ export default async function IncidentsPage({
   const query = await searchParams;
   const ids = await getScopedFacilityIds(user, query.scope);
   const scopedIds = query.facilityId && ids.includes(query.facilityId) ? [query.facilityId] : ids;
-  const openOnly = query.status === "open";
+  const statusValues = incidentStatusesForFilter(query.status);
   const [incidents, facilities, users] = await Promise.all([
     prisma.incident.findMany({
       where: {
         facilityId: { in: scopedIds },
         ...(query.mine === "1" ? { assigneeId: user.id } : {}),
         ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
-        ...(openOnly ? { status: { in: [...OPEN_INCIDENT_STATUSES] } } : {}),
-        ...(query.status && !openOnly ? { status: query.status } : {}),
+        ...(statusValues ? { status: { in: statusValues } } : {}),
         ...(query.priority ? { priority: query.priority } : {}),
         ...(query.withoutActions === "1"
-          ? { status: { in: [...OPEN_INCIDENT_STATUSES] }, actions: { none: {} } }
+          ? {
+              ...(!query.status ? { status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } } : {}),
+              actions: { none: {} },
+            }
           : {}),
       },
       include: {
@@ -83,56 +83,35 @@ export default async function IncidentsPage({
           image="/brand/illustrations/page-incidents.png"
         />
       ) : (
-        <Card>
-          <Table>
-            <THead>
-              <TR>
-                <TH>Incident</TH>
-                <TH>Facility / branch</TH>
-                <TH>Priority</TH>
-                <TH>Status</TH>
-                <TH>Actions</TH>
-                <TH>Assignee</TH>
-                <TH>Date reported</TH>
-                <TH></TH>
-              </TR>
-            </THead>
-            <TBody>
-              {incidents.map((row) => (
-                <IncidentRow
-                  key={row.id}
-                  canManage={canManage}
-                  canUpdate={canUpdate}
-                  canClose={canClose}
-                  canAddAction={canAddAction}
-                  users={users}
-                  incident={{
-                    id: row.id,
-                    status: row.status,
-                    priority: row.priority,
-                    description: row.description,
-                    facilityId: row.facilityId,
-                    facilityName: row.facility.name,
-                    branchName: row.branch?.name,
-                    assigneeId: row.assigneeId,
-                    assigneeName: row.assignee?.name,
-                    createdAt: row.createdAt.toISOString(),
-                    reportedAt: row.reportedAt.toISOString(),
-                    updatedAt: row.updatedAt.toISOString(),
-                    actionCount: row._count.actions,
-                    resolutionInfo: row.resolutionInfo,
-                  }}
-                />
-              ))}
-            </TBody>
-          </Table>
-        </Card>
+        <IncidentInbox
+          canManage={canManage}
+          canUpdate={canUpdate}
+          canClose={canClose}
+          canAddAction={canAddAction}
+          users={users}
+          incidents={incidents.map((row) => ({
+            id: row.id,
+            status: row.status,
+            priority: row.priority,
+            description: row.description,
+            facilityId: row.facilityId,
+            facilityName: row.facility.name,
+            branchName: row.branch?.name,
+            assigneeId: row.assigneeId,
+            assigneeName: row.assignee?.name,
+            createdAt: row.createdAt.toISOString(),
+            reportedAt: row.reportedAt.toISOString(),
+            updatedAt: row.updatedAt.toISOString(),
+            actionCount: row._count.actions,
+            resolutionInfo: row.resolutionInfo,
+          }))}
+        />
       )}
       <details
         className="mt-6 rounded-2xl border border-hairline bg-surface-raised p-5"
         open={query.add === "1"}
       >
-        <summary className="font-heading flex cursor-pointer list-none items-center gap-2 text-[18px]">
+        <summary className="font-heading flex cursor-pointer list-none items-center gap-2 text-[16px] md:text-[18px]">
           <Plus className="h-4 w-4 text-brand" />
           Add incidents
         </summary>

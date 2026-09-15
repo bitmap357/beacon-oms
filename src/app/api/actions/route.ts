@@ -6,6 +6,7 @@ import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permission
 import { actionSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
+import { OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
         ...(overdue
           ? {
               dueDate: { lt: new Date() },
-              status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+              status: { in: [...OPEN_ACTION_STATUSES] },
             }
           : {}),
       },

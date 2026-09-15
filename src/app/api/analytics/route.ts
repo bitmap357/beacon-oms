@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { getAccessibleFacilityIds } from "@/lib/permissions";
 
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
-const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN = OPEN_INCIDENT_STATUS_QUERY;
 
 export async function GET() {
   try {
@@ -74,14 +74,14 @@ export async function GET() {
         const openActions = await prisma.action.count({
           where: {
             ownerId: member.id,
-            status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+            status: { in: [...OPEN_ACTION_STATUSES] },
           },
         });
         const overdue = await prisma.action.count({
           where: {
             ownerId: member.id,
             dueDate: { lt: new Date() },
-            status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+            status: { in: [...OPEN_ACTION_STATUSES] },
           },
         });
         const activityVolume = await prisma.activity.count({

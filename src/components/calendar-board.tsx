@@ -109,13 +109,15 @@ function WeekGrid({
   weekStart,
   byDay,
   focusDay,
-  onPickDay,
+  onFocusDay,
+  onLogDay,
   onPickEvent,
 }: {
   weekStart: Date;
   byDay: Map<string, CalendarEvent[]>;
   focusDay?: string;
-  onPickDay: (day: string) => void;
+  onFocusDay: (day: string) => void;
+  onLogDay: (day: string) => void;
   onPickEvent: (event: CalendarEvent) => void;
 }) {
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
@@ -123,39 +125,52 @@ function WeekGrid({
   const gridHeight = (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT;
 
   return (
-    <div className="overflow-hidden rounded-[12px] border border-hairline bg-surface-raised">
-      <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-hairline">
-        <div />
-        {days.map((day) => {
-          const key = isoDate(day);
-          const isToday = key === today;
-          const isFocus = key === focusDay;
-          return (
-            <button
-              type="button"
-              key={key}
-              onClick={() => onPickDay(key)}
-              className={cn(
-                "border-l border-hairline px-2 py-3 text-left hover:bg-surface",
-                isFocus && "ring-2 ring-inset ring-gold",
-              )}
-            >
-              <p className="text-[12px] text-slate">{WEEKDAYS[day.getDay()]}</p>
-              <span
+    <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 md:mx-0 md:px-0">
+      <div className="min-w-[40rem] overflow-hidden rounded-[12px] border border-hairline bg-surface-raised md:min-w-0">
+        <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] border-b border-hairline">
+          <div />
+          {days.map((day) => {
+            const key = isoDate(day);
+            const isToday = key === today;
+            const isFocus = key === focusDay;
+            return (
+              <div
+                key={key}
                 className={cn(
-                  "mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full font-heading text-lg",
-                  isToday && "bg-brand text-white",
-                  isFocus && !isToday && "bg-gold/30",
+                  "border-l border-hairline px-2 py-3 text-left",
+                  isFocus && "ring-2 ring-inset ring-gold",
                 )}
               >
-                {day.getDate()}
-              </span>
-              <span className="mt-1 block text-[11px] text-brand">+ visit</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-hairline">
+                <button
+                  type="button"
+                  onClick={() => onFocusDay(key)}
+                  className="block w-full text-left hover:bg-surface"
+                  aria-label={`Focus ${WEEKDAYS[day.getDay()]} ${day.getDate()}`}
+                >
+                  <p className="text-[12px] text-slate">{WEEKDAYS[day.getDay()]}</p>
+                  <span
+                    className={cn(
+                      "mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full font-heading text-lg",
+                      isToday && "bg-brand text-white",
+                      isFocus && !isToday && "bg-gold/30",
+                    )}
+                  >
+                    {day.getDate()}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Log visit on ${key}`}
+                  onClick={() => onLogDay(key)}
+                  className="mt-1 block text-[11px] text-brand hover:underline"
+                >
+                  + visit
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] border-b border-hairline">
         <div className="px-2 py-2 text-[11px] text-slate">All day</div>
         {days.map((day) => {
           const key = isoDate(day);
@@ -180,7 +195,7 @@ function WeekGrid({
         })}
       </div>
       <div className="max-h-[70vh] overflow-auto">
-        <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))]">
+        <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))]">
           <div className="relative" style={{ height: gridHeight }}>
             {hours().map((hour) => (
               <div
@@ -196,34 +211,31 @@ function WeekGrid({
             const key = isoDate(day);
             const timed = (byDay.get(key) || []).filter((event) => !isAllDay(event));
             return (
-              <button
-                type="button"
+              <div
                 key={key}
-                onClick={() => onPickDay(key)}
                 className="relative border-l border-hairline"
                 style={{ height: gridHeight }}
               >
+                <button
+                  type="button"
+                  aria-label={`Log visit on ${key}`}
+                  onClick={() => onLogDay(key)}
+                  className="absolute inset-0 z-0"
+                />
                 {hours().map((hour) => (
                   <div
                     key={hour}
-                    className="absolute inset-x-0 border-t border-hairline/80"
+                    className="pointer-events-none absolute inset-x-0 border-t border-hairline/80"
                     style={{ top: (hour - DAY_START_HOUR) * HOUR_HEIGHT }}
                   />
                 ))}
                 {timed.map((event) => (
-                  <span
+                  <button
+                    type="button"
                     key={`${event.kind}-${event.id}`}
-                    role="link"
-                    tabIndex={0}
-                    onClick={(click) => {
-                      click.stopPropagation();
-                      onPickEvent(event);
-                    }}
-                    onKeyDown={(keyEvent) => {
-                      if (keyEvent.key === "Enter") onPickEvent(event);
-                    }}
+                    onClick={() => onPickEvent(event)}
                     className={cn(
-                      "absolute inset-x-1 overflow-hidden rounded-[8px] border px-1.5 py-1 text-left text-[11px]",
+                      "absolute inset-x-1 z-10 overflow-hidden rounded-[8px] border px-1.5 py-1 text-left text-[11px]",
                       KIND_STYLE[event.kind],
                     )}
                     style={{
@@ -236,12 +248,13 @@ function WeekGrid({
                       {timeLabel(event.at)}
                       {event.end ? `–${timeLabel(event.end)}` : ""}
                     </span>
-                  </span>
+                  </button>
                 ))}
-              </button>
+              </div>
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -389,70 +402,74 @@ export function CalendarBoard({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <Button variant="secondary" size="icon" onClick={() => go(-1)} aria-label="Previous month">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="secondary" size="icon" onClick={() => go(1)} aria-label="Next month">
-            <ChevronRight className="h-4 w-4" />
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button variant="secondary" size="icon" onClick={() => go(-1)} aria-label={view === "week" ? "Previous week" : "Previous month"}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="secondary" size="icon" onClick={() => go(1)} aria-label={view === "week" ? "Next week" : "Next month"}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <h2 className="font-heading min-w-0 flex-1 text-[16px] sm:text-[20px]">{title}</h2>
+          <Button
+            variant="secondary"
+            onClick={() => router.push(monthQuery(new Date(), view, isoDate(new Date())))}
+          >
+            Today
           </Button>
         </div>
-        <h2 className="font-heading min-w-40 text-[20px]">{title}</h2>
-        <Button
-          variant="secondary"
-          onClick={() => router.push(monthQuery(new Date(), view, isoDate(new Date())))}
-        >
-          Today
-        </Button>
-        <label className="flex items-center gap-2 text-[14px] text-slate">
-          Go to
-          <Input
-            type="date"
-            className="w-auto"
-            value={focusDay || isoDate(new Date(year, month, 1))}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (!value) return;
-              const next = new Date(`${value}T00:00:00`);
-              router.push(monthQuery(next, view, value));
-            }}
-            aria-label="Jump to a date"
-          />
-        </label>
-        <div className="ml-auto flex gap-2">
-          <Button
-            variant={view === "month" ? "default" : "secondary"}
-            onClick={() =>
-              router.push(
-                monthQuery(
-                  focusDay ? new Date(`${focusDay}T00:00:00`) : new Date(year, month, 1),
-                  "month",
-                  focusDay,
-                ),
-              )
-            }
-          >
-            Month
-          </Button>
-          <Button
-            variant={view === "week" ? "default" : "secondary"}
-            onClick={() =>
-              router.push(
-                monthQuery(
-                  focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart,
-                  "week",
-                  focusDay || isoDate(weekStart),
-                ),
-              )
-            }
-          >
-            Week
-          </Button>
-          <Button onClick={() => setSelectedDate(focusDay || isoDate(new Date()))}>
-            <Plus className="h-4 w-4" />
-            Log visit
-          </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <label className="flex min-w-0 items-center gap-2 text-[14px] text-slate">
+            Go to
+            <Input
+              type="date"
+              className="w-full min-w-0 sm:w-auto"
+              value={focusDay || isoDate(new Date(year, month, 1))}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (!value) return;
+                const next = new Date(`${value}T00:00:00`);
+                router.push(monthQuery(next, view, value));
+              }}
+              aria-label="Jump to a date"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
+            <Button
+              variant={view === "month" ? "default" : "secondary"}
+              onClick={() =>
+                router.push(
+                  monthQuery(
+                    focusDay ? new Date(`${focusDay}T00:00:00`) : new Date(year, month, 1),
+                    "month",
+                    focusDay,
+                  ),
+                )
+              }
+            >
+              Month
+            </Button>
+            <Button
+              variant={view === "week" ? "default" : "secondary"}
+              onClick={() =>
+                router.push(
+                  monthQuery(
+                    focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart,
+                    "week",
+                    focusDay || isoDate(weekStart),
+                  ),
+                )
+              }
+            >
+              Week
+            </Button>
+            <Button className="flex-1 sm:flex-none" onClick={() => setSelectedDate(focusDay || isoDate(new Date()))}>
+              <Plus className="h-4 w-4" />
+              Log visit
+            </Button>
+          </div>
         </div>
       </div>
       <ul className="mb-3 flex flex-wrap gap-4 text-[12px] text-slate">
@@ -469,10 +486,11 @@ export function CalendarBoard({
 
       {view === "month" ? (
         <div className="overflow-hidden rounded-[12px] border border-hairline bg-surface-raised">
-          <div className="grid grid-cols-7 border-b border-hairline bg-surface text-[12px] text-slate">
+          <div className="grid grid-cols-7 border-b border-hairline bg-surface text-[11px] text-slate sm:text-[12px]">
             {WEEKDAYS.map((day) => (
-              <div key={day} className="px-2 py-2 font-medium">
-                {day}
+              <div key={day} className="px-1 py-2 text-center font-medium sm:px-2 sm:text-left">
+                <span className="sm:hidden">{day.slice(0, 1)}</span>
+                <span className="hidden sm:inline">{day}</span>
               </div>
             ))}
           </div>
@@ -484,71 +502,82 @@ export function CalendarBoard({
               const isFocus = key === focusDay;
               const dayEvents = byDay.get(key) || [];
               return (
-                <button
-                  type="button"
+                <div
                   key={key}
-                  onClick={() => setSelectedDate(key)}
                   className={cn(
-                    "min-h-28 border-b border-r border-hairline p-1.5 text-left align-top hover:bg-surface",
+                    "min-h-[4.5rem] border-b border-r border-hairline p-1 text-left align-top sm:min-h-24 md:min-h-28 md:p-1.5",
                     !inMonth && "bg-surface/60 text-slate",
                     isToday && "bg-brand/5",
                     isFocus && "ring-2 ring-inset ring-gold",
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-1">
-                    <span
+                    <button
+                      type="button"
+                      onClick={() => router.push(monthQuery(day, view, key))}
                       className={cn(
-                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px]",
+                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] hover:bg-surface",
                         isToday && "bg-brand text-white",
                         isFocus && !isToday && "bg-gold/30",
                       )}
+                      aria-label={`Focus ${key}`}
                     >
                       {day.getDate()}
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    </button>
+                    <button
+                      type="button"
                       aria-label={`Log visit on ${key}`}
-                      onClick={(click) => {
-                        click.stopPropagation();
-                        setSelectedDate(key);
-                      }}
-                      onKeyDown={(keyEvent) => {
-                        if (keyEvent.key === "Enter") setSelectedDate(key);
-                      }}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate hover:bg-brand/10 hover:text-brand"
+                      onClick={() => setSelectedDate(key)}
+                      className="hidden h-5 w-5 items-center justify-center rounded-full text-slate hover:bg-brand/10 hover:text-brand sm:inline-flex"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                    </span>
+                    </button>
                   </div>
-                  <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => router.push(monthQuery(day, view, key))}
+                    className="flex w-full flex-wrap gap-0.5 sm:hidden"
+                    aria-label={`Show events for ${key}`}
+                  >
                     {dayEvents.slice(0, 3).map((event) => (
                       <span
                         key={`${event.kind}-${event.id}`}
-                        role="link"
-                        tabIndex={0}
-                        onClick={(click) => {
-                          click.stopPropagation();
-                          setSelectedEvent(event);
-                        }}
-                        onKeyDown={(keyEvent) => {
-                          if (keyEvent.key === "Enter") setSelectedEvent(event);
-                        }}
                         className={cn(
-                          "block truncate rounded-[6px] border px-1.5 py-0.5 text-[11px]",
+                          "h-1.5 w-1.5 rounded-full",
+                          event.kind === "visit" && "bg-[#e8b923]",
+                          event.kind === "activity" && "bg-brand",
+                          event.kind === "action" && "bg-[#791F1F]",
+                        )}
+                      />
+                    ))}
+                  </button>
+                  <div className="hidden space-y-1 sm:block">
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <button
+                        type="button"
+                        key={`${event.kind}-${event.id}`}
+                        onClick={() => setSelectedEvent(event)}
+                        className={cn(
+                          "block w-full truncate rounded-[6px] border px-1.5 py-0.5 text-left text-[11px]",
                           KIND_STYLE[event.kind],
                         )}
                       >
                         {event.kind === "visit" && timeLabel(event.at)
                           ? `${timeLabel(event.at)} ${event.title}`
                           : event.title}
-                      </span>
+                      </button>
                     ))}
                     {dayEvents.length > 3 ? (
-                      <span className="text-[11px] text-slate">+{dayEvents.length - 3} more</span>
+                      <button
+                        type="button"
+                        onClick={() => router.push(monthQuery(day, view, key))}
+                        className="text-[11px] text-slate"
+                      >
+                        +{dayEvents.length - 3} more
+                      </button>
                     ) : null}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -558,14 +587,55 @@ export function CalendarBoard({
           weekStart={weekStart}
           byDay={byDay}
           focusDay={focusDay}
-          onPickDay={setSelectedDate}
+          onFocusDay={(day) => router.push(monthQuery(new Date(`${day}T00:00:00`), "week", day))}
+          onLogDay={setSelectedDate}
           onPickEvent={setSelectedEvent}
         />
       )}
 
+      {view === "month" && focusDay ? (
+        <div className="mt-4 rounded-2xl border border-hairline bg-surface-raised p-4 sm:hidden">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="font-heading text-[16px]">
+              {new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" }).format(
+                new Date(`${focusDay}T00:00:00`),
+              )}
+            </h3>
+            <Button size="sm" onClick={() => setSelectedDate(focusDay)}>
+              <Plus className="h-3.5 w-3.5" />
+              Log
+            </Button>
+          </div>
+          {(byDay.get(focusDay) || []).length === 0 ? (
+            <p className="text-[13px] text-slate">Nothing logged for this day yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {(byDay.get(focusDay) || []).map((event) => (
+                <li key={`${event.kind}-${event.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEvent(event)}
+                    className={cn(
+                      "w-full rounded-[10px] border px-3 py-2 text-left text-[13px]",
+                      KIND_STYLE[event.kind],
+                    )}
+                  >
+                    <span className="block font-medium">{event.title}</span>
+                    <span className="block text-[12px] opacity-80">
+                      {timeLabel(event.at) || "All day"}
+                      {event.end ? `–${timeLabel(event.end)}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
       {selectedDate ? (
-        <div className="fixed inset-0 z-40 flex items-end justify-end bg-black/30 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-[16px] border border-hairline bg-surface-raised p-5 shadow-xl">
+        <div className="fixed inset-0 z-40 flex items-end bg-black/30 p-0 sm:items-center sm:justify-center sm:p-4">
+          <div className="w-full max-w-md rounded-t-[20px] border border-hairline bg-surface-raised p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-[16px]">
             <h3 className="font-heading mb-1 text-[18px]">Log a visit</h3>
             <p className="mb-4 text-[13px] text-slate">
               Site visit, demo/meeting, or training. Future dates are fine. A report is optional.
@@ -673,8 +743,8 @@ export function CalendarBoard({
       ) : null}
 
       {selectedEvent ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[16px] border border-hairline bg-surface-raised p-5">
+        <div className="fixed inset-0 z-40 flex items-end bg-black/30 p-0 sm:items-center sm:justify-center sm:p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[20px] border border-hairline bg-surface-raised p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-[16px]">
             <p className="text-[12px] uppercase tracking-wide text-slate">{selectedEvent.kind}</p>
             <h3 className="font-heading mt-1 text-[18px]">{selectedEvent.title}</h3>
             <p className="mt-2 text-sm">

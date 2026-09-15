@@ -77,7 +77,7 @@ export function EditDeleteControls({
       ) : null}
       {canDelete ? <DeleteButton path={path} /> : null}
       {open ? (
-        <div className="mt-3 w-full min-w-64 rounded-[12px] border border-hairline bg-surface p-4">
+        <div className="mt-3 w-full min-w-0 rounded-[12px] border border-hairline bg-surface p-4">
           <SimpleForm action={path} method={method} submitLabel="Save" fields={fields} />
         </div>
       ) : null}

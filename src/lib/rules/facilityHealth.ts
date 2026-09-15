@@ -6,7 +6,7 @@
 import type { Prisma } from "@prisma/client";
 import type { FacilityHealth } from "@/lib/db-types";
 import { prisma } from "@/lib/db";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
 type Counts = {
   openIncidents: number;
@@ -33,19 +33,19 @@ export async function getFacilityHealthInputs(
     unresolvedHighOver7Days,
   ] = await Promise.all([
     client.incident.count({
-      where: { facilityId, status: { in: [...OPEN_INCIDENT_STATUSES] } },
+      where: { facilityId, status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } },
     }),
     client.incident.count({
       where: {
         facilityId,
-        status: { in: [...OPEN_INCIDENT_STATUSES] },
+        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: { in: ["HIGH", "CRITICAL"] },
       },
     }),
     client.incident.count({
       where: {
         facilityId,
-        status: { in: [...OPEN_INCIDENT_STATUSES] },
+        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: "CRITICAL",
       },
     }),
@@ -53,7 +53,7 @@ export async function getFacilityHealthInputs(
       where: {
         facilityId,
         dueDate: { lt: now },
-        status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+        status: { in: [...OPEN_ACTION_STATUSES] },
       },
     }),
     client.qARecord.count({
@@ -66,7 +66,7 @@ export async function getFacilityHealthInputs(
     client.incident.count({
       where: {
         facilityId,
-        status: { in: [...OPEN_INCIDENT_STATUSES] },
+        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: { in: ["HIGH", "CRITICAL"] },
         createdAt: { lt: sevenDaysAgo },
       },

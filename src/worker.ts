@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { notifyUsers } from "@/lib/notifications";
+import { OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
 async function run() {
   const facilities = await prisma.facility.findMany({ select: { id: true, name: true } });
@@ -32,7 +33,7 @@ async function run() {
   const overdue = await prisma.action.findMany({
     where: {
       dueDate: { lt: new Date() },
-      status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+      status: { in: [...OPEN_ACTION_STATUSES] },
     },
   });
   for (const action of overdue) {
@@ -58,7 +59,7 @@ async function run() {
   const dueSoon = await prisma.action.findMany({
     where: {
       dueDate: { gte: new Date(), lte: soon },
-      status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+      status: { in: [...OPEN_ACTION_STATUSES] },
     },
   });
   for (const action of dueSoon) {

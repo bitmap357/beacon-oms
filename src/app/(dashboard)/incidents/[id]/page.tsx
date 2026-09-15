@@ -12,7 +12,7 @@ import { formatDate, formatDateTime, incidentLabel, labelize } from "@/lib/utils
 import { DeleteButton } from "@/components/record-actions";
 import { IncidentCommentForm } from "@/components/incident-comment-form";
 import { AttachmentPanel } from "@/components/attachment-panel";
-import { incidentStatusOptions } from "@/lib/incident-status";
+import { incidentStatusOptions, canonicalIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 
 export default async function IncidentDetailPage({
   params,
@@ -67,7 +67,7 @@ export default async function IncidentDetailPage({
             <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
               {incident.facility.name}
             </Link>
-            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} · status {labelize(incident.status)}
+            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} · status {labelIncidentStatus(incident.status)}
           </p>
           {incident.resolutionInfo ? (
             <p className="mt-3 text-sm">Resolution: {incident.resolutionInfo}</p>
@@ -148,7 +148,10 @@ export default async function IncidentDetailPage({
                 <span className="font-mono text-[12px] text-slate">
                   {formatDateTime(row.changedAt)}
                 </span>{" "}
-                {row.fieldChanged}: {row.oldValue || "—"} → {row.newValue}
+                {row.fieldChanged}:{" "}
+                {row.fieldChanged === "status"
+                  ? `${row.oldValue ? labelIncidentStatus(row.oldValue) : "—"} → ${row.newValue ? labelIncidentStatus(row.newValue) : "—"}`
+                  : `${row.oldValue || "—"} → ${row.newValue}`}
               </li>
             ))}
           </ol>
@@ -168,7 +171,7 @@ export default async function IncidentDetailPage({
                   value,
                   label: labelize(value),
                 })),
-                defaultValue: incident.status,
+                defaultValue: String(canonicalIncidentStatus(incident.status)),
               },
               {
                 name: "description",

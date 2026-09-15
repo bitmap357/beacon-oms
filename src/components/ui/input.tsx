@@ -6,7 +6,7 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "h-10 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-[15px] text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "h-11 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-base text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:h-10 md:text-[15px]",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "min-h-24 w-full rounded-xl border border-hairline bg-surface-raised px-3 py-2 text-[15px] text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "min-h-24 w-full rounded-xl border border-hairline bg-surface-raised px-3 py-2 text-base text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:text-[15px]",
         className,
       )}
       {...props}
@@ -42,7 +42,7 @@ export function Select({ className, ...props }: React.ComponentProps<"select">) 
   return (
     <select
       className={cn(
-        "h-10 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-[15px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "h-11 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-base text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:h-10 md:text-[15px]",
         className,
       )}
       {...props}

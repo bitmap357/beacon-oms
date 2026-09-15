@@ -15,7 +15,7 @@ import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, mergeStatusCounts } from "@/lib/incident-status";
 import {
   Building2,
   GitBranch,
@@ -30,7 +30,7 @@ import {
   FileText,
 } from "lucide-react";
 
-const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN = OPEN_INCIDENT_STATUS_QUERY;
 const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
 const HEALTH_COLORS: Record<string, string> = {
   HEALTHY: "#1D6B45",
@@ -275,7 +275,7 @@ export default async function DashboardPage({
       <Card className="mb-6 overflow-hidden bg-brand/5">
         <div className="grid items-center gap-4 p-5 md:grid-cols-[1fr_280px]">
           <div>
-            <p className="font-heading text-[28px] text-ink">{greetingFor(user.name)}</p>
+            <p className="font-heading text-[22px] text-ink md:text-[28px]">{greetingFor(user.name)}</p>
             <p className="mt-2 max-w-xl text-sm text-slate">{insights[0]}</p>
             <p className="mt-1 max-w-xl text-sm text-slate">{insights[1]}</p>
           </div>
@@ -283,7 +283,7 @@ export default async function DashboardPage({
           <img
             src="/brand/illustrations/hero.png"
             alt=""
-            className="mx-auto h-40 w-full max-w-xs object-contain md:h-48"
+            className="mx-auto h-32 w-full max-w-xs object-contain md:h-48"
           />
         </div>
       </Card>
@@ -298,7 +298,7 @@ export default async function DashboardPage({
           Organization → facility → optional branch → incidents → required actions → reports for a date range.
         </p>
       </Card>
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard label="Facilities" value={totalFacilities} href="/facilities" icon={Building2} />
         <MetricCard label="Branches" value={branchCount} href="/facilities" icon={GitBranch} />
         <MetricCard label="Active facilities" value={activeFacilities} href="/facilities" icon={HeartPulse} />
@@ -345,14 +345,14 @@ export default async function DashboardPage({
           <h2 className="font-heading mb-3 text-[18px]">Incidents by status</h2>
           <DonutChart
             id="incident-status"
-            data={incidentStatus.map((row) => ({
+            data={mergeStatusCounts(incidentStatus).map((row) => ({
               category: labelize(row.status),
               value: row._count.status,
               color: STATUS_COLORS[row.status] || "#1558D6",
             }))}
           />
           <ChartKey
-            items={incidentStatus.map((row) => ({
+            items={mergeStatusCounts(incidentStatus).map((row) => ({
               label: `${labelize(row.status)} (${row._count.status})`,
               color: STATUS_COLORS[row.status] || "#1558D6",
             }))}

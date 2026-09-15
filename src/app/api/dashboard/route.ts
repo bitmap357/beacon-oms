@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiUser } from "@/lib/http";
 import { getAccessibleFacilityIds } from "@/lib/permissions";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
-const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN = OPEN_INCIDENT_STATUS_QUERY;
 
 export async function GET() {
   try {
@@ -50,7 +50,7 @@ export async function GET() {
         where: {
           facilityId: { in: ids },
           dueDate: { lt: now },
-          status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+          status: { in: [...OPEN_ACTION_STATUSES] },
         },
       }),
       prisma.activity.count({
@@ -106,14 +106,14 @@ export async function GET() {
           prisma.action.count({
             where: {
               facilityId: { in: facilityIds },
-              status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+              status: { in: [...OPEN_ACTION_STATUSES] },
             },
           }),
           prisma.action.count({
             where: {
               facilityId: { in: facilityIds },
               dueDate: { lt: now },
-              status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+              status: { in: [...OPEN_ACTION_STATUSES] },
             },
           }),
         ]);

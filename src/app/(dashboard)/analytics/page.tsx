@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart } from "@/components/charts";
 import { labelize } from "@/lib/utils";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
 export default async function AnalyticsPage() {
   const user = await requireUser();
@@ -54,20 +54,20 @@ export default async function AnalyticsPage() {
         prisma.incident.count({
           where: {
             assigneeId: member.id,
-            status: { in: [...OPEN_INCIDENT_STATUSES] },
+            status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
           },
         }),
         prisma.action.count({
           where: {
             ownerId: member.id,
-            status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+            status: { in: [...OPEN_ACTION_STATUSES] },
           },
         }),
         prisma.action.count({
           where: {
             ownerId: member.id,
             dueDate: { lt: new Date() },
-            status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+            status: { in: [...OPEN_ACTION_STATUSES] },
           },
         }),
         prisma.activity.count({ where: { responsibleUserId: member.id } }),

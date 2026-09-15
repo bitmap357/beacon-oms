@@ -17,10 +17,8 @@ import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from 
 import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
 import { DeleteButton, EditDeleteControls } from "@/components/record-actions";
-import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 import { Plus } from "lucide-react";
-
-const OPEN = OPEN_INCIDENT_STATUSES;
 
 export default async function FacilityDetailPage({
   params,
@@ -75,11 +73,9 @@ export default async function FacilityDetailPage({
     calculateVisitRecommendation(id),
   ]);
 
-  const openIncidents = incidents.filter((row) => OPEN.includes(row.status as (typeof OPEN)[number]));
+  const openIncidents = incidents.filter((row) => isOpenIncidentStatus(row.status));
   const overdue = actions.filter(
-    (row) =>
-      row.dueDate < new Date() &&
-      ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"].includes(row.status),
+    (row) => row.dueDate < new Date() && isOpenActionStatus(row.status),
   );
   const lead = facility.assignments.find((row) => row.isActive && row.isLead);
   const lastVisit = activities.find((row) => row.type === "SITE_VISIT");
@@ -113,7 +109,7 @@ export default async function FacilityDetailPage({
           <Link href={`/reports?facilityId=${id}`}>View reports</Link>
         </Button>
       </div>
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard label="Lead PM/QA" value={lead?.user.name || "Unassigned"} />
         <MetricCard label="Open incidents" value={openIncidents.length} href={`/incidents?facilityId=${id}&status=open`} />
         <MetricCard label="Overdue actions" value={overdue.length} href={`/actions?facilityId=${id}&overdue=1`} />
@@ -290,7 +286,7 @@ export default async function FacilityDetailPage({
                       {labelize(row.priority)}
                     </TonePill>
                   </TD>
-                  <TD>{labelize(row.status)}</TD>
+                  <TD>{labelIncidentStatus(row.status)}</TD>
                 </TR>
               ))}
             </TBody>

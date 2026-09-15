@@ -28,25 +28,25 @@ export function PageHeader({
   illustration?: string;
 }) {
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 md:px-5 md:py-4">
-        <div className="flex min-w-0 flex-1 items-center gap-4">
+    <div className="mb-5 overflow-hidden rounded-2xl border border-hairline bg-surface-raised md:mb-6">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between md:px-5 md:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {illustration ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={illustration}
               alt=""
-              className="h-20 w-20 shrink-0 object-contain md:h-28 md:w-28"
+              className="h-14 w-14 shrink-0 object-contain sm:h-20 sm:w-20 md:h-28 md:w-28"
             />
           ) : null}
           <div className="min-w-0">
-            <h1 className="font-heading text-[28px] leading-tight text-ink">{title}</h1>
+            <h1 className="font-heading break-words text-[22px] leading-tight text-ink md:text-[28px]">{title}</h1>
             {description ? (
-              <p className="mt-1 max-w-2xl text-[14px] text-slate">{description}</p>
+              <p className="mt-1 max-w-2xl text-[13px] text-slate md:text-[14px]">{description}</p>
             ) : null}
           </div>
         </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
+        {actions ? <div className="w-full shrink-0 sm:w-auto">{actions}</div> : null}
       </div>
     </div>
   );

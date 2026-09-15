@@ -12,7 +12,7 @@ import { TonePill } from "@/components/ui/status-pill";
 import { ScopeFilter } from "@/components/scope-filter";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY } from "@/lib/incident-status";
 
 export default async function ActionsPage({
   searchParams,
@@ -50,7 +50,7 @@ export default async function ActionsPage({
     prisma.incident.findMany({
       where: {
         facilityId: { in: scopedIds },
-        status: { in: [...OPEN_INCIDENT_STATUSES] },
+        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
       },
       select: { id: true, title: true, description: true, createdAt: true, reportedAt: true },
       orderBy: { createdAt: "desc" },

@@ -20,8 +20,8 @@ export function IncidentFilters() {
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-end gap-3">
-      <div className="min-w-40">
+    <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
+      <div className="min-w-0 sm:min-w-40">
         <Label>Status</Label>
         <Select
           value={params.get("status") || ""}
@@ -37,7 +37,7 @@ export function IncidentFilters() {
           ))}
         </Select>
       </div>
-      <div className="min-w-36">
+      <div className="min-w-0 sm:min-w-36">
         <Label>Priority</Label>
         <Select
           value={params.get("priority") || ""}

@@ -67,7 +67,7 @@ export function AttachmentPanel({
         </ul>
       )}
       <form action={onUpload} className="flex flex-wrap items-end gap-2">
-        <div className="min-w-48 flex-1">
+        <div className="min-w-0 flex-1">
           <Label>Add a file</Label>
           <Input name="file" type="file" required />
         </div>

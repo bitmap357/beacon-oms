@@ -8,7 +8,7 @@ import { MetricCard } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { formatDate, formatRole } from "@/lib/utils";
 import { Building2, Siren, ClipboardCheck, Star } from "lucide-react";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY } from "@/lib/incident-status";
 
 export default async function ProfilePage({
   params,
@@ -29,7 +29,7 @@ export default async function ProfilePage({
     prisma.incident.findMany({
       where: {
         assigneeId: userId,
-        status: { in: [...OPEN_INCIDENT_STATUSES] },
+        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
       },
     }),
     prisma.action.findMany({
@@ -55,7 +55,7 @@ export default async function ProfilePage({
         description={`${formatRole(person.role)} · ${person.isActive ? "Active" : "Deactivated"}`}
         illustration="/brand/illustrations/page-profile.png"
       />
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard
           label="Assigned facilities"
           value={activeAssignments.length}

@@ -6,7 +6,7 @@ import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } 
 import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
-import { INCIDENT_STATUSES } from "@/lib/incident-status";
+import { INCIDENT_STATUSES, INCIDENT_STATUS_ALIASES } from "@/lib/incident-status";
 import { incidentRecordFields } from "@/lib/utils";
 import type { IncidentPriority, IncidentStatus } from "@/lib/db-types";
 
@@ -103,12 +103,7 @@ export async function POST(request: Request) {
       const excelRow = sheet.getRow(index);
       const incidentText = named(excelRow, columns, "incident");
       const statusRaw = named(excelRow, columns, "status").toUpperCase().replaceAll(" ", "_");
-      const statusAliases: Record<string, string> = {
-        ASSIGNED: "NEW",
-        AWAITING_QA: "IN_PROGRESS",
-        RESOLVED: "CLOSED",
-      };
-      const statusMapped = statusAliases[statusRaw] || statusRaw;
+      const statusMapped = INCIDENT_STATUS_ALIASES[statusRaw] || statusRaw;
       const reportedRaw = named(excelRow, columns, "datereported");
       const branchName = named(excelRow, columns, "branch");
       const priorityRaw = named(excelRow, columns, "priority").toUpperCase() || "MEDIUM";

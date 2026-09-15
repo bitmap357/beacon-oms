@@ -13,7 +13,7 @@ import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { incidentPatchSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
-import { INCIDENT_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { INCIDENT_STATUSES, OPEN_INCIDENT_STATUSES, canonicalIncidentStatus } from "@/lib/incident-status";
 import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 import type { IncidentStatus } from "@/lib/db-types";
 
@@ -61,7 +61,7 @@ export async function PATCH(
     const body = incidentPatchSchema.parse(await request.json());
     assertUnchanged(previous.updatedAt, body.updatedAt);
 
-    if (body.status && body.status !== previous.status) {
+    if (body.status && canonicalIncidentStatus(previous.status) !== body.status) {
       if (!INCIDENT_STATUSES.includes(body.status as IncidentStatus)) {
         throw new HttpError(400, "Invalid status");
       }
@@ -146,7 +146,7 @@ export async function PATCH(
         relatedId: incident.id,
       });
     }
-    if (body.status && body.status !== previous.status) {
+    if (body.status && body.status !== canonicalIncidentStatus(previous.status)) {
       const recipients = [incident.assigneeId, incident.reporterId].filter(Boolean) as string[];
       await notifyUsers(recipients, {
         type: body.status === "REOPENED" ? "INCIDENT_REOPENED" : "INCIDENT_STATUS_CHANGED",

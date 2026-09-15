@@ -53,12 +53,12 @@ export function LoginPanel() {
             </div>
           </div>
         </section>
-        <section className="flex items-center justify-center px-4 py-16">
+        <section className="flex items-center justify-center px-4 py-10 sm:py-16">
           <div className="w-full max-w-md">
-            <div className="mb-8 lg:hidden">
-              <BrandLockup className="mx-auto w-52" />
+            <div className="mb-6 lg:hidden">
+              <BrandLockup className="mx-auto w-44 sm:w-52" />
             </div>
-            <div className="rounded-[16px] border border-hairline bg-surface-raised p-7 shadow-[0_18px_50px_rgba(12,20,36,0.08)]">
+            <div className="rounded-[16px] border border-hairline bg-surface-raised p-5 shadow-[0_18px_50px_rgba(12,20,36,0.08)] sm:p-7">
               <h1 className="font-heading mb-1 text-2xl text-ink">Sign in</h1>
               <p className="mb-6 text-[13px] text-slate">
                 Use your Beacon account to continue.

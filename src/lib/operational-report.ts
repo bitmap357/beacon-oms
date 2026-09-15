@@ -4,9 +4,8 @@
  */
 import { prisma } from "@/lib/db";
 import { incidentLabel, labelize } from "@/lib/utils";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, isClosedIncidentStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 
-const OPEN = OPEN_INCIDENT_STATUSES;
 const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
 
 export async function buildOperationalReport(input: {
@@ -50,10 +49,8 @@ export async function buildOperationalReport(input: {
       : Promise.resolve(null),
   ]);
 
-  const openIncidents = incidents.filter((row) =>
-    OPEN.includes(row.status as (typeof OPEN)[number]),
-  );
-  const closedIncidents = incidents.filter((row) => row.status === "CLOSED");
+  const openIncidents = incidents.filter((row) => isOpenIncidentStatus(row.status));
+  const closedIncidents = incidents.filter((row) => isClosedIncidentStatus(row.status));
   const overdueActions = actions.filter(
     (row) =>
       row.dueDate < new Date() &&
@@ -70,7 +67,7 @@ export async function buildOperationalReport(input: {
   const keyIncidents = incidents
     .filter((row) => row.priority === "CRITICAL" || row.priority === "HIGH")
     .slice(0, 8)
-    .map((row) => `${incidentLabel(row)} (${labelize(row.status)})`)
+    .map((row) => `${incidentLabel(row)} (${labelIncidentStatus(row.status)})`)
     .join("\n");
 
   const outstanding = overdueActions
