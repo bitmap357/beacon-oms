@@ -107,10 +107,10 @@ export const activitySchema = z.object({
 });
 
 export const incidentSchema = z.object({
-  title: z.string().trim().min(4).max(200),
+  title: z.string().trim().max(200).optional().nullable(),
   facilityId: z.string().min(1),
   branchId: z.string().optional().nullable(),
-  description: z.string().trim().min(8),
+  description: z.string().trim().optional().nullable(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   assigneeId: z.string().optional().nullable(),
   relatedActivityId: z.string().optional().nullable(),

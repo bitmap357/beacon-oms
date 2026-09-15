@@ -11,8 +11,10 @@ import { PageHeader } from "@/components/ui/page";
 import { StatusPill, TonePill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
-import { formatDate, formatDateTime, formatRole, labelize } from "@/lib/utils";
+import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from "@/lib/utils";
+import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
+import { DeleteButton } from "@/components/record-actions";
 
 const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
 
@@ -80,7 +82,14 @@ export default async function FacilityDetailPage({
       <PageHeader
         title={facility.name}
         description={`${facility.clientOrganization.name}${facility.branches.length ? ` · ${facility.branches.length} branch${facility.branches.length === 1 ? "" : "es"}` : ""}`}
-        actions={<StatusPill status={facility.status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusPill status={facility.status} />
+            {hasPermission(user.role, "facilities.manage") ? (
+              <DeleteButton path={`/api/facilities/${id}`} redirectTo="/facilities" />
+            ) : null}
+          </div>
+        }
       />
       <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild>
@@ -95,13 +104,18 @@ export default async function FacilityDetailPage({
       </div>
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Lead PM/QA" value={lead?.user.name || "Unassigned"} />
-        <MetricCard label="Open incidents" value={openIncidents.length} />
-        <MetricCard label="Overdue actions" value={overdue.length} />
+        <MetricCard label="Open incidents" value={openIncidents.length} href={`/incidents?facilityId=${id}&status=open`} />
+        <MetricCard label="Overdue actions" value={overdue.length} href={`/actions?facilityId=${id}&overdue=1`} />
         <MetricCard
           label="Visit"
           value={labelize(visit.recommendation)}
+          href="/calendar"
         />
       </div>
+      <Card className="mb-6 p-5">
+        <h2 className="font-heading mb-3 text-[18px]">Bulk upload incidents</h2>
+        <IncidentImportForm facilityId={id} />
+      </Card>
       {visit.reason ? (
         <p className="mb-4 text-[13px] text-slate">{visit.reason}</p>
       ) : null}
@@ -256,7 +270,7 @@ export default async function FacilityDetailPage({
           <Table>
             <THead>
               <TR>
-                <TH>Title</TH>
+                <TH>Incident</TH>
                 <TH>Priority</TH>
                 <TH>Status</TH>
               </TR>
@@ -266,7 +280,7 @@ export default async function FacilityDetailPage({
                 <TR key={row.id}>
                   <TD>
                     <Link className="text-brand" href={`/incidents/${row.id}`}>
-                      {row.title}
+                      {incidentLabel(row)}
                     </Link>
                     {row.branch ? (
                       <span className="block text-[12px] text-slate">{row.branch.name}</span>

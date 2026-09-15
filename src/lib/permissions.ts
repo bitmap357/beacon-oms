@@ -2,7 +2,7 @@
  * Who can do what, and which facilities they see.
  *
  * Edit ROLE_PERMISSIONS to grant/revoke a capability.
- * PM_QA / Developer only see facilities they are assigned to unless they have facilities.readAll.
+ * Everyone can list all facilities (facilities.readAll). Filter to assigned via getAssignedFacilityIds / ?scope=assigned.
  * Screens call assertPermission / getAccessibleFacilityIds; APIs use the same helpers via src/lib/http.ts.
  */
 import type { Prisma } from "@prisma/client";
@@ -77,6 +77,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   PM_QA: [
     "orgs.read",
+    "facilities.readAll",
     "incidents.create",
     "incidents.assign",
     "incidents.manage",
@@ -91,6 +92,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   DEVELOPER: [
     "orgs.read",
+    "facilities.readAll",
     "incidents.create",
     "activities.create",
     "actions.manage",
@@ -118,18 +120,34 @@ export function assertPermission(user: SessionUser, permission: Permission) {
   }
 }
 
-/** Admin/Management: every facility. Others: active FacilityAssignment rows only. */
+/** Every facility the user may list. Roles with facilities.readAll see all sites. */
 export async function getAccessibleFacilityIds(user: SessionUser) {
   if (hasPermission(user.role, "facilities.readAll")) {
     const rows = await prisma.facility.findMany({ select: { id: true } });
     return rows.map((row) => row.id);
   }
 
+  return getAssignedFacilityIds(user);
+}
+
+/** Active FacilityAssignment rows for this user. */
+export async function getAssignedFacilityIds(user: SessionUser) {
   const assignments = await prisma.facilityAssignment.findMany({
     where: { userId: user.id, isActive: true },
     select: { facilityId: true },
   });
   return [...new Set(assignments.map((row) => row.facilityId))];
+}
+
+/** List queries: scope=assigned uses assignments; otherwise all accessible facilities. */
+export async function getScopedFacilityIds(
+  user: SessionUser,
+  scope?: string | null,
+) {
+  const all = await getAccessibleFacilityIds(user);
+  if (scope !== "assigned") return all;
+  const assigned = await getAssignedFacilityIds(user);
+  return assigned.filter((id) => all.includes(id));
 }
 
 export function facilityScopeWhere(

@@ -1,27 +1,47 @@
 /** Incident inbox + Excel import. New incident: /incidents/new */
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
-import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { TonePill } from "@/components/ui/status-pill";
+import { Table, TBody, TH, THead, TR } from "@/components/ui/table";
 import { IncidentForm, IncidentImportForm } from "@/components/incident-forms";
-import { formatDate, labelize } from "@/lib/utils";
+import { IncidentRow } from "@/components/incident-row";
+import { ScopeFilter } from "@/components/scope-filter";
+import { IllustratedEmpty } from "@/components/empty-state";
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 
 export default async function IncidentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ facilityId?: string }>;
+  searchParams: Promise<{
+    facilityId?: string;
+    scope?: string;
+    mine?: string;
+    status?: string;
+    priority?: string;
+    withoutActions?: string;
+    assigneeId?: string;
+  }>;
 }) {
   const user = await requireUser();
-  const { facilityId } = await searchParams;
-  const ids = await getAccessibleFacilityIds(user);
-  const scopedIds = facilityId && ids.includes(facilityId) ? [facilityId] : ids;
+  const query = await searchParams;
+  const ids = await getScopedFacilityIds(user, query.scope);
+  const scopedIds = query.facilityId && ids.includes(query.facilityId) ? [query.facilityId] : ids;
+  const openOnly = query.status === "open";
   const [incidents, facilities, users] = await Promise.all([
     prisma.incident.findMany({
-      where: { facilityId: { in: scopedIds } },
+      where: {
+        facilityId: { in: scopedIds },
+        ...(query.mine === "1" ? { assigneeId: user.id } : {}),
+        ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+        ...(openOnly ? { status: { in: [...OPEN_INCIDENT_STATUSES] } } : {}),
+        ...(query.status && !openOnly ? { status: query.status } : {}),
+        ...(query.priority ? { priority: query.priority } : {}),
+        ...(query.withoutActions === "1"
+          ? { status: { in: [...OPEN_INCIDENT_STATUSES] }, actions: { none: {} } }
+          : {}),
+      },
       include: {
         facility: true,
         branch: true,
@@ -40,12 +60,15 @@ export default async function IncidentsPage({
       select: { id: true, name: true },
     }),
   ]);
+  const canManage = hasPermission(user.role, "incidents.manage");
+  const canAddAction = hasPermission(user.role, "actions.manage");
 
   return (
     <div>
       <PageHeader
         title="Incidents"
-        description="Log one incident at a time, or upload a bulk Excel sheet. Each incident belongs to a facility (and optional branch) and should have follow-up actions."
+        description="Log incidents by facility, priority, and owner. Update status and add actions here without opening another page."
+        actions={<ScopeFilter includeMine />}
       />
       <div className="mb-6 grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
@@ -53,7 +76,7 @@ export default async function IncidentsPage({
           <IncidentForm
             facilities={facilities}
             users={users}
-            defaultFacilityId={facilityId}
+            defaultFacilityId={query.facilityId}
           />
         </Card>
         <Card className="p-5">
@@ -61,51 +84,50 @@ export default async function IncidentsPage({
           <IncidentImportForm />
         </Card>
       </div>
-      <Card>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Incident</TH>
-              <TH>Facility / branch</TH>
-              <TH>Priority</TH>
-              <TH>Status</TH>
-              <TH>Actions</TH>
-              <TH>Assignee</TH>
-              <TH>Opened</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {incidents.map((row) => (
-              <TR key={row.id}>
-                <TD>
-                  <Link className="text-brand" href={`/incidents/${row.id}`}>
-                    {row.title}
-                  </Link>
-                </TD>
-                <TD>
-                  <Link className="text-brand" href={`/facilities/${row.facilityId}`}>
-                    {row.facility.name}
-                  </Link>
-                  {row.branch ? <span className="text-slate"> · {row.branch.name}</span> : null}
-                </TD>
-                <TD>
-                  <TonePill tone={row.priority === "CRITICAL" || row.priority === "HIGH" ? "danger" : "warn"}>
-                    {labelize(row.priority)}
-                  </TonePill>
-                </TD>
-                <TD>{labelize(row.status)}</TD>
-                <TD>
-                  <Link className="text-brand" href={`/actions?incidentId=${row.id}`}>
-                    {row._count.actions}
-                  </Link>
-                </TD>
-                <TD>{row.assignee?.name || "—"}</TD>
-                <TD className="font-mono text-[12px]">{formatDate(row.createdAt)}</TD>
+      {incidents.length === 0 ? (
+        <IllustratedEmpty title="No incidents in this view yet. Log one on the left, or switch the filter to All." />
+      ) : (
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Incident</TH>
+                <TH>Facility / branch</TH>
+                <TH>Priority</TH>
+                <TH>Status</TH>
+                <TH>Actions</TH>
+                <TH>Assignee</TH>
+                <TH>Opened</TH>
+                <TH></TH>
               </TR>
-            ))}
-          </TBody>
-        </Table>
-      </Card>
+            </THead>
+            <TBody>
+              {incidents.map((row) => (
+                <IncidentRow
+                  key={row.id}
+                  canManage={canManage}
+                  canAddAction={canAddAction}
+                  users={users}
+                  incident={{
+                    id: row.id,
+                    status: row.status,
+                    priority: row.priority,
+                    facilityId: row.facilityId,
+                    facilityName: row.facility.name,
+                    branchName: row.branch?.name,
+                    assigneeId: row.assigneeId,
+                    assigneeName: row.assignee?.name,
+                    createdAt: row.createdAt.toISOString(),
+                    updatedAt: row.updatedAt.toISOString(),
+                    actionCount: row._count.actions,
+                    resolutionInfo: row.resolutionInfo,
+                  }}
+                />
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

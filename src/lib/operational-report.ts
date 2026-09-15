@@ -3,7 +3,7 @@
  * Used by POST /api/reports/generate. Section keys must match REPORT_SECTIONS.OPERATIONAL.
  */
 import { prisma } from "@/lib/db";
-import { labelize } from "@/lib/utils";
+import { incidentLabel, labelize } from "@/lib/utils";
 
 const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
 const OPEN_ACTIONS = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] as const;
@@ -71,7 +71,7 @@ export async function buildOperationalReport(input: {
   const keyIncidents = incidents
     .filter((row) => row.priority === "CRITICAL" || row.priority === "HIGH")
     .slice(0, 8)
-    .map((row) => `${row.title} (${labelize(row.status)})`)
+    .map((row) => `${incidentLabel(row)} (${labelize(row.status)})`)
     .join("\n");
 
   const outstanding = overdueActions

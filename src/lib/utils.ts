@@ -19,6 +19,21 @@ export function formatDate(value: Date | string | null | undefined) {
   }).format(date);
 }
 
+export function incidentLabel(row: { createdAt?: Date | string | null }) {
+  const date = formatDate(row.createdAt);
+  return date === "—" ? "Incident" : `Incident · ${date}`;
+}
+
+export function incidentRecordFields(input?: {
+  title?: string | null;
+  description?: string | null;
+}) {
+  return {
+    title: input?.title?.trim() || "Incident",
+    description: input?.description?.trim() || "",
+  };
+}
+
 export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;

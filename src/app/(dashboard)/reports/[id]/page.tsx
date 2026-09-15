@@ -14,6 +14,7 @@ import { formatDate, labelize } from "@/lib/utils";
 import { REPORT_SECTIONS, labelFor, formatReportValue } from "@/lib/reportTemplates";
 import type { ReportType } from "@/lib/db-types";
 import { parseJson } from "@/lib/db-types";
+import { DeleteButton } from "@/components/record-actions";
 
 export default async function ReportDetailPage({
   params,
@@ -55,6 +56,7 @@ export default async function ReportDetailPage({
             <Button asChild>
               <a href={`/api/reports/${report.id}/export?format=xlsx`}>Excel</a>
             </Button>
+            <DeleteButton path={`/api/reports/${report.id}`} redirectTo="/reports" />
           </div>
         }
       />

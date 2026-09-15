@@ -1,7 +1,7 @@
 /** List + generate reports. Generate form redirects to /reports/[id]. */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -9,15 +9,18 @@ import { SimpleForm, GenerateReportForm } from "@/components/forms";
 import { formatDate, labelize } from "@/lib/utils";
 import { REPORT_SECTIONS } from "@/lib/reportTemplates";
 import Link from "next/link";
+import { ScopeFilter } from "@/components/scope-filter";
+import { EditDeleteControls } from "@/components/record-actions";
+import { IllustratedEmpty } from "@/components/empty-state";
 
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ facilityId?: string }>;
+  searchParams: Promise<{ facilityId?: string; scope?: string }>;
 }) {
   const user = await requireUser();
-  const { facilityId } = await searchParams;
-  const ids = await getAccessibleFacilityIds(user);
+  const { facilityId, scope } = await searchParams;
+  const ids = await getScopedFacilityIds(user, scope);
   const scopedIds = facilityId && ids.includes(facilityId) ? [facilityId] : ids;
   const [reports, facilities] = await Promise.all([
     prisma.report.findMany({
@@ -35,6 +38,7 @@ export default async function ReportsPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  const canManage = hasPermission(user.role, "reports.manage");
 
   const contentFields = REPORT_SECTIONS.SITE_VISIT.map((key) => ({
     name: `content.${key}`,
@@ -47,6 +51,7 @@ export default async function ReportsPage({
       <PageHeader
         title="Reports"
         description="Generate operational reports from incidents and actions over a date range, or write a structured site visit."
+        actions={<ScopeFilter />}
       />
       <Card className="mb-6 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Generate from incidents & actions</h2>
@@ -83,6 +88,9 @@ export default async function ReportsPage({
           ]}
         />
       </Card>
+      {reports.length === 0 ? (
+        <IllustratedEmpty title="No reports in this view yet. Generate one above." />
+      ) : (
       <Card>
         <Table>
           <THead>
@@ -93,6 +101,7 @@ export default async function ReportsPage({
               <TH>Author</TH>
               <TH>Status</TH>
               <TH>Export</TH>
+              <TH></TH>
             </TR>
           </THead>
           <TBody>
@@ -126,11 +135,30 @@ export default async function ReportsPage({
                     Excel
                   </a>
                 </TD>
+                <TD>
+                  {canManage ? (
+                    <EditDeleteControls
+                      path={`/api/reports/${row.id}`}
+                      fields={[
+                        {
+                          name: "status",
+                          label: "Status",
+                          options: ["DRAFT", "SUBMITTED", "REVIEWED"].map((value) => ({
+                            value,
+                            label: labelize(value),
+                          })),
+                          defaultValue: row.status,
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </TD>
               </TR>
             ))}
           </TBody>
         </Table>
       </Card>
+      )}
     </div>
   );
 }

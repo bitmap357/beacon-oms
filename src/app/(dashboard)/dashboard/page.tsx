@@ -10,12 +10,28 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart, DonutChart, HorizontalBarChart, LineChart, ChartKey } from "@/components/charts";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds } from "@/lib/permissions";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
-import { formatDate, labelize } from "@/lib/utils";
+import { formatDate, incidentLabel, labelize } from "@/lib/utils";
+import { ScopeFilter } from "@/components/scope-filter";
+import { IllustratedEmpty } from "@/components/empty-state";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import {
+  Building2,
+  GitBranch,
+  HeartPulse,
+  Siren,
+  AlertTriangle,
+  ClipboardCheck,
+  CircleAlert,
+  CalendarDays,
+  MapPin,
+  ShieldCheck,
+  FileText,
+} from "lucide-react";
 
-const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
-const OPEN_ACTIONS = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] as const;
+const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
 const HEALTH_COLORS: Record<string, string> = {
   HEALTHY: "#1D6B45",
   ATTENTION_REQUIRED: "#854F0B",
@@ -52,9 +68,21 @@ function weekKey(date: Date) {
   return `${start.getMonth() + 1}/${start.getDate()}`;
 }
 
-export default async function DashboardPage() {
+function greetingFor(name: string) {
+  const hour = new Date().getHours();
+  const hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const first = name.split(" ")[0] || name;
+  return `${hello}, ${first}.`;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
   const user = await requireUser();
-  const ids = await getAccessibleFacilityIds(user);
+  const { scope } = await searchParams;
+  const ids = await getScopedFacilityIds(user, scope);
   const now = new Date();
   const weekStartDate = weekStart(now);
   const lookback = new Date(now);
@@ -244,7 +272,23 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Operational picture for Spagad facilities, incidents, actions, and reports."
+        actions={<ScopeFilter />}
       />
+      <Card className="mb-6 overflow-hidden bg-brand/5">
+        <div className="grid items-center gap-4 p-5 md:grid-cols-[1fr_280px]">
+          <div>
+            <p className="font-heading text-[28px] text-ink">{greetingFor(user.name)}</p>
+            <p className="mt-2 max-w-xl text-sm text-slate">{insights[0]}</p>
+            <p className="mt-1 max-w-xl text-sm text-slate">{insights[1]}</p>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/illustrations/hero.png"
+            alt=""
+            className="mx-auto h-40 w-full max-w-xs object-contain md:h-48"
+          />
+        </div>
+      </Card>
       <Card className="mb-6 p-5">
         <h2 className="font-heading mb-2 text-[18px]">What needs attention</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-ink">
@@ -257,18 +301,18 @@ export default async function DashboardPage() {
         </p>
       </Card>
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Facilities" value={totalFacilities} />
-        <MetricCard label="Branches" value={branchCount} />
-        <MetricCard label="Active facilities" value={activeFacilities} />
-        <MetricCard label="Requiring attention" value={attention} />
-        <MetricCard label="Open incidents" value={openIncidents} />
-        <MetricCard label="Critical open" value={criticalIncidents} />
-        <MetricCard label="Overdue actions" value={overdueActions} />
-        <MetricCard label="Incidents without actions" value={incidentsWithoutActions} />
-        <MetricCard label="Activities this week" value={activitiesThisWeek} />
-        <MetricCard label="Visits due" value={visits.length} />
-        <MetricCard label="Pending QA" value={pendingQa} />
-        <MetricCard label="Reports this month" value={reportsThisMonth} />
+        <MetricCard label="Facilities" value={totalFacilities} href="/facilities" icon={Building2} />
+        <MetricCard label="Branches" value={branchCount} href="/facilities" icon={GitBranch} />
+        <MetricCard label="Active facilities" value={activeFacilities} href="/facilities" icon={HeartPulse} />
+        <MetricCard label="Requiring attention" value={attention} href="/facilities?status=attention" icon={AlertTriangle} />
+        <MetricCard label="Open incidents" value={openIncidents} href="/incidents?status=open" icon={Siren} />
+        <MetricCard label="Critical open" value={criticalIncidents} href="/incidents?status=open&priority=CRITICAL" icon={CircleAlert} />
+        <MetricCard label="Overdue actions" value={overdueActions} href="/actions?overdue=1" icon={ClipboardCheck} />
+        <MetricCard label="Incidents without actions" value={incidentsWithoutActions} href="/incidents?withoutActions=1" icon={CircleAlert} />
+        <MetricCard label="Activities this week" value={activitiesThisWeek} href="/calendar" icon={CalendarDays} />
+        <MetricCard label="Visits due" value={visits.length} href="/calendar" icon={MapPin} />
+        <MetricCard label="Pending QA" value={pendingQa} href="/qa" icon={ShieldCheck} />
+        <MetricCard label="Reports this month" value={reportsThisMonth} href="/reports" icon={FileText} />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
@@ -364,7 +408,7 @@ export default async function DashboardPage() {
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">High / critical open incidents</h2>
           {openIncidentRows.length === 0 ? (
-            <p className="text-sm text-slate">No high or critical incidents are open.</p>
+            <IllustratedEmpty title="No high or critical incidents are open." />
           ) : (
             <Table>
               <THead>
@@ -379,7 +423,7 @@ export default async function DashboardPage() {
                   <TR key={row.id}>
                     <TD>
                       <Link className="text-brand" href={`/incidents/${row.id}`}>
-                        {row.title}
+                        {incidentLabel(row)}
                       </Link>
                     </TD>
                     <TD>
@@ -400,7 +444,7 @@ export default async function DashboardPage() {
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Overdue actions</h2>
           {overdueActionRows.length === 0 ? (
-            <p className="text-sm text-slate">No overdue actions.</p>
+            <IllustratedEmpty title="No overdue actions." />
           ) : (
             <Table>
               <THead>
@@ -417,7 +461,7 @@ export default async function DashboardPage() {
                     <TD>
                       {row.incident ? (
                         <Link className="text-brand" href={`/incidents/${row.incident.id}`}>
-                          {row.incident.title}
+                          {incidentLabel(row.incident)}
                         </Link>
                       ) : (
                         "—"
@@ -435,7 +479,10 @@ export default async function DashboardPage() {
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Visits due</h2>
           {visits.length === 0 ? (
-            <p className="text-sm text-slate">No facilities currently flagged for a visit.</p>
+            <IllustratedEmpty
+              title="No facilities currently flagged for a visit."
+              image="/brand/illustrations/empty-calendar.png"
+            />
           ) : (
             <ul className="space-y-3">
               {visits.slice(0, 8).map(({ facility, rec }) => (

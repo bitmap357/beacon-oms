@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { assertFacilityAccess } from "@/lib/permissions";
+import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { TonePill } from "@/components/ui/status-pill";
 import { SimpleForm } from "@/components/forms";
-import { formatDate, formatDateTime, labelize } from "@/lib/utils";
+import { formatDate, formatDateTime, incidentLabel, labelize } from "@/lib/utils";
+import { DeleteButton } from "@/components/record-actions";
 
 export default async function IncidentDetailPage({
   params,
@@ -31,6 +32,7 @@ export default async function IncidentDetailPage({
   });
   if (!incident) notFound();
   await assertFacilityAccess(user, incident.facilityId);
+  const canManage = hasPermission(user.role, "incidents.manage");
   const users = await prisma.user.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
@@ -39,18 +41,20 @@ export default async function IncidentDetailPage({
   return (
     <div>
       <PageHeader
-        title={incident.title}
+        title={incidentLabel(incident)}
         description={`${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}`}
         actions={
-          <TonePill tone={incident.priority === "CRITICAL" ? "danger" : "warn"}>
-            {labelize(incident.priority)}
-          </TonePill>
+          <div className="flex items-center gap-2">
+            <TonePill tone={incident.priority === "CRITICAL" ? "danger" : "warn"}>
+              {labelize(incident.priority)}
+            </TonePill>
+            {canManage ? <DeleteButton path={`/api/incidents/${incident.id}`} redirectTo="/incidents" /> : null}
+          </div>
         }
       />
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="p-5 xl:col-span-2">
-          <p className="text-sm whitespace-pre-wrap">{incident.description}</p>
-          <p className="mt-4 text-[13px] text-slate">
+          <p className="text-[13px] text-slate">
             <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
               {incident.facility.name}
             </Link>
@@ -83,7 +87,7 @@ export default async function IncidentDetailPage({
               {
                 name: "incidentId",
                 label: "Incident",
-                options: [{ value: incident.id, label: incident.title }],
+                options: [{ value: incident.id, label: incidentLabel(incident) }],
               },
               { name: "title", label: "Action title", required: true },
               {
@@ -136,14 +140,26 @@ export default async function IncidentDetailPage({
                   "RESOLVED",
                   "CLOSED",
                 ].map((value) => ({ value, label: labelize(value) })),
+                defaultValue: incident.status,
               },
               {
                 name: "assigneeId",
                 label: "Assignee",
                 options: users.map((row) => ({ value: row.id, label: row.name })),
+                defaultValue: incident.assigneeId || "",
               },
-              { name: "resolutionInfo", label: "Resolution", textarea: true },
-              { name: "updatedAt", label: "Current timestamp", options: [{ value: incident.updatedAt.toISOString(), label: "Use latest" }] },
+              {
+                name: "resolutionInfo",
+                label: "Resolution (optional)",
+                textarea: true,
+                defaultValue: incident.resolutionInfo || "",
+              },
+              {
+                name: "updatedAt",
+                label: "Current timestamp",
+                options: [{ value: incident.updatedAt.toISOString(), label: "Use latest" }],
+                defaultValue: incident.updatedAt.toISOString(),
+              },
             ]}
           />
           <p className="mt-4 text-[12px] text-slate">

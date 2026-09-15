@@ -1,16 +1,24 @@
-/** QA records for accessible facilities. Create via SimpleForm → POST /api/qa-records */
+/** QA records for accessible facilities. Create via QaForm → POST /api/qa-records */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { SimpleForm } from "@/components/forms";
-import { formatDate, labelize } from "@/lib/utils";
+import { formatDate, incidentLabel, labelize } from "@/lib/utils";
+import { ScopeFilter } from "@/components/scope-filter";
+import { QaForm } from "@/components/qa-form";
+import { EditDeleteControls } from "@/components/record-actions";
+import { IllustratedEmpty } from "@/components/empty-state";
 
-export default async function QAPage() {
+export default async function QAPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string; incidentId?: string }>;
+}) {
   const user = await requireUser();
-  const ids = await getAccessibleFacilityIds(user);
+  const { scope, incidentId } = await searchParams;
+  const ids = await getScopedFacilityIds(user, scope);
   const [records, facilities, incidents] = await Promise.all([
     prisma.qARecord.findMany({
       where: { facilityId: { in: ids } },
@@ -20,68 +28,81 @@ export default async function QAPage() {
     prisma.facility.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
     prisma.incident.findMany({
       where: { facilityId: { in: ids } },
-      select: { id: true, title: true },
-      take: 50,
+      select: { id: true, facilityId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
     }),
   ]);
+  const canManage = hasPermission(user.role, "qa.manage");
 
   return (
     <div>
-      <PageHeader title="QA" description="Verification of incident resolutions and deployments." />
+      <PageHeader
+        title="QA"
+        description="Verification of incident resolutions and deployments."
+        actions={<ScopeFilter />}
+      />
       <Card className="mb-6 p-5">
-        <SimpleForm
-          action="/api/qa-records"
-          submitLabel="Record QA"
-          fields={[
-            {
-              name: "facilityId",
-              label: "Facility",
-              required: true,
-              options: facilities.map((row) => ({ value: row.id, label: row.name })),
-            },
-            {
-              name: "relatedIncidentId",
-              label: "Related incident",
-              options: [{ value: "", label: "None" }, ...incidents.map((row) => ({ value: row.id, label: row.title }))],
-            },
-            { name: "qaDate", label: "QA date", type: "date", required: true },
-            {
-              name: "result",
-              label: "Result",
-              required: true,
-              options: ["PASSED", "FAILED", "PASSED_WITH_ISSUES", "REQUIRES_RETEST"].map((value) => ({
-                value,
-                label: labelize(value),
-              })),
-            },
-            { name: "findings", label: "Findings", textarea: true },
-          ]}
+        <QaForm
+          facilities={facilities}
+          incidents={incidents}
+          defaultIncidentId={incidentId}
         />
       </Card>
-      <Card>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Facility</TH>
-              <TH>Result</TH>
-              <TH>QA person</TH>
-              <TH>Date</TH>
-              <TH>Incident</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {records.map((row) => (
-              <TR key={row.id}>
-                <TD>{row.facility.name}</TD>
-                <TD>{labelize(row.result)}</TD>
-                <TD>{row.qaUser.name}</TD>
-                <TD className="font-mono text-[12px]">{formatDate(row.qaDate)}</TD>
-                <TD>{row.relatedIncident?.title || "—"}</TD>
+      {records.length === 0 ? (
+        <IllustratedEmpty title="No QA records yet. Record a verification above." />
+      ) : (
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Facility</TH>
+                <TH>Result</TH>
+                <TH>QA person</TH>
+                <TH>Date</TH>
+                <TH>Incident</TH>
+                <TH></TH>
               </TR>
-            ))}
-          </TBody>
-        </Table>
-      </Card>
+            </THead>
+            <TBody>
+              {records.map((row) => (
+                <TR key={row.id}>
+                  <TD>{row.facility.name}</TD>
+                  <TD>{labelize(row.result)}</TD>
+                  <TD>{row.qaUser.name}</TD>
+                  <TD className="font-mono text-[12px]">{formatDate(row.qaDate)}</TD>
+                  <TD>
+                    {row.relatedIncident ? incidentLabel(row.relatedIncident) : "—"}
+                  </TD>
+                  <TD>
+                    {canManage ? (
+                      <EditDeleteControls
+                        path={`/api/qa-records/${row.id}`}
+                        fields={[
+                          {
+                            name: "result",
+                            label: "Result",
+                            options: ["PASSED", "FAILED", "PASSED_WITH_ISSUES", "REQUIRES_RETEST"].map(
+                              (value) => ({ value, label: labelize(value) }),
+                            ),
+                            defaultValue: row.result,
+                          },
+                          {
+                            name: "findings",
+                            label: "Findings",
+                            textarea: true,
+                            defaultValue: row.findings || "",
+                          },
+                        ]}
+                      />
+                    ) : null}
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

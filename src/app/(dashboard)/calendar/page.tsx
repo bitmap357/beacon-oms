@@ -4,18 +4,19 @@
  */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/page";
 import { CalendarBoard, type CalendarEvent } from "@/components/calendar-board";
+import { ScopeFilter } from "@/components/scope-filter";
 
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; view?: string; day?: string }>;
+  searchParams: Promise<{ month?: string; view?: string; day?: string; scope?: string }>;
 }) {
   const user = await requireUser();
-  const { month, view, day } = await searchParams;
-  const ids = await getAccessibleFacilityIds(user);
+  const { month, view, day, scope } = await searchParams;
+  const ids = await getScopedFacilityIds(user, scope);
   const now = new Date();
   const [yearStr, monthStr] = (month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`).split("-");
   const year = Number(yearStr);
@@ -85,7 +86,8 @@ export default async function CalendarPage({
     <div>
       <PageHeader
         title="Calendar"
-        description="Site visits are logged as timed activities. Open a day to record who went, when, and what was covered. Gold is a visit, blue is other activity, red is an action due date."
+        description="Site visits are logged as timed activities. Open a day — even one that already has a visit — to record who went, when, and what was covered. Gold is a visit, blue is other activity, red is an action due date."
+        actions={<ScopeFilter />}
       />
       <CalendarBoard
         year={year}

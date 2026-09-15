@@ -67,3 +67,36 @@ export async function PATCH(
     return errorResponse(error);
   }
 }
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireApiUser();
+    requireApiPermission(user, "reports.manage");
+    const { id } = await context.params;
+    const previous = await prisma.report.findUnique({ where: { id } });
+    if (!previous) return json({ error: "Not found" }, 404);
+    await assertFacilityAccess(user, previous.facilityId);
+    const meta = requestMeta(request);
+    await prisma.$transaction(async (tx) => {
+      await tx.attachment.updateMany({
+        where: { reportId: id },
+        data: { reportId: null, deletedAt: new Date(), deletedById: user.id },
+      });
+      await tx.report.delete({ where: { id } });
+      await logAudit(tx, {
+        userId: user.id,
+        action: "report.deleted",
+        entityType: "Report",
+        entityId: id,
+        previousValue: { type: previous.type, status: previous.status },
+        ...meta,
+      });
+    });
+    return json({ ok: true });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { formatDate, formatRole } from "@/lib/utils";
+import { Building2, Siren, ClipboardCheck, Star } from "lucide-react";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 
 export default async function ProfilePage({
   params,
@@ -27,13 +29,13 @@ export default async function ProfilePage({
     prisma.incident.findMany({
       where: {
         assigneeId: userId,
-        status: { in: ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] },
+        status: { in: [...OPEN_INCIDENT_STATUSES] },
       },
     }),
     prisma.action.findMany({
       where: {
         ownerId: userId,
-        status: { in: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] },
+        status: { in: [...OPEN_ACTION_STATUSES] },
       },
     }),
     prisma.activity.findMany({
@@ -44,6 +46,7 @@ export default async function ProfilePage({
     }),
   ]);
   const overdue = actions.filter((row) => row.dueDate < new Date());
+  const activeAssignments = assignments.filter((row) => row.isActive);
 
   return (
     <div>
@@ -52,10 +55,30 @@ export default async function ProfilePage({
         description={`${formatRole(person.role)} · ${person.isActive ? "Active" : "Deactivated"}`}
       />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Assigned facilities" value={assignments.filter((row) => row.isActive).length} />
-        <MetricCard label="Lead facilities" value={assignments.filter((row) => row.isActive && row.isLead).length} />
-        <MetricCard label="Open incidents" value={incidents.length} />
-        <MetricCard label="Overdue actions" value={overdue.length} />
+        <MetricCard
+          label="Assigned facilities"
+          value={activeAssignments.length}
+          href={`/facilities?userId=${userId}`}
+          icon={Building2}
+        />
+        <MetricCard
+          label="Lead facilities"
+          value={activeAssignments.filter((row) => row.isLead).length}
+          href={`/facilities?userId=${userId}`}
+          icon={Star}
+        />
+        <MetricCard
+          label="Open incidents"
+          value={incidents.length}
+          href={`/incidents?assigneeId=${userId}&status=open`}
+          icon={Siren}
+        />
+        <MetricCard
+          label="Overdue actions"
+          value={overdue.length}
+          href={`/actions?ownerId=${userId}&overdue=1`}
+          icon={ClipboardCheck}
+        />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
@@ -69,7 +92,11 @@ export default async function ProfilePage({
                 <span className="text-slate">
                   {" "}
                   · {row.isLead ? "Lead" : "Member"} · {row.isActive ? "Active" : "Past"}
+                  {" · "}
                 </span>
+                <Link className="text-brand" href={`/incidents?facilityId=${row.facilityId}&assigneeId=${userId}`}>
+                  incidents
+                </Link>
               </li>
             ))}
           </ul>
@@ -79,7 +106,10 @@ export default async function ProfilePage({
           <ul className="space-y-2 text-sm">
             {activities.map((row) => (
               <li key={row.id}>
-                {formatDate(row.date)} · {row.facility.name}
+                {formatDate(row.date)} ·{" "}
+                <Link className="text-brand" href={`/facilities/${row.facilityId}`}>
+                  {row.facility.name}
+                </Link>
               </li>
             ))}
           </ul>

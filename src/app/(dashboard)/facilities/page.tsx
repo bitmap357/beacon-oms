@@ -2,21 +2,35 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds, hasPermission } from "@/lib/permissions";
+import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { EmptyState } from "@/components/ui/page";
 import { FacilityForm } from "@/components/forms";
 import { formatDate } from "@/lib/utils";
+import { ScopeFilter } from "@/components/scope-filter";
+import { IllustratedEmpty } from "@/components/empty-state";
 
-export default async function FacilitiesPage() {
+export default async function FacilitiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string; userId?: string; status?: string }>;
+}) {
   const user = await requireUser();
-  const ids = await getAccessibleFacilityIds(user);
+  const { scope, userId, status } = await searchParams;
+  const ids = await getScopedFacilityIds(user, scope);
+  const attention = ["ATTENTION_REQUIRED", "AT_RISK", "CRITICAL"];
   const [facilities, organizations] = await Promise.all([
     prisma.facility.findMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        ...(status === "attention" ? { status: { in: attention } } : {}),
+        ...(status && status !== "attention" ? { status } : {}),
+        ...(userId
+          ? { assignments: { some: { userId, isActive: true } } }
+          : {}),
+      },
       include: {
         clientOrganization: true,
         branches: { orderBy: { name: "asc" } },
@@ -36,6 +50,7 @@ export default async function FacilitiesPage() {
       <PageHeader
         title="Facilities"
         description="Each facility belongs to an organization. Some facilities have branches that incidents can be scoped to."
+        actions={<ScopeFilter />}
       />
       {hasPermission(user.role, "facilities.manage") ? (
         <Card className="mb-6 p-5">
@@ -44,7 +59,10 @@ export default async function FacilitiesPage() {
         </Card>
       ) : null}
       {facilities.length === 0 ? (
-        <EmptyState title="No facilities yet — create one to get started." />
+        <IllustratedEmpty
+          title="No facilities in this view."
+          image="/brand/illustrations/empty-map.png"
+        />
       ) : (
         <Card>
           <Table>

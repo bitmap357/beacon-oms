@@ -70,3 +70,42 @@ export async function PATCH(
     return errorResponse(error);
   }
 }
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireApiUser();
+    requireApiPermission(user, "activities.create");
+    const { id } = await context.params;
+    const previous = await prisma.activity.findUnique({ where: { id } });
+    if (!previous) return json({ error: "Not found" }, 404);
+    await assertFacilityAccess(user, previous.facilityId);
+    const meta = requestMeta(request);
+    await prisma.$transaction(async (tx) => {
+      await tx.activityParticipant.deleteMany({ where: { activityId: id } });
+      await tx.incident.updateMany({
+        where: { relatedActivityId: id },
+        data: { relatedActivityId: null },
+      });
+      await tx.report.updateMany({ where: { activityId: id }, data: { activityId: null } });
+      await tx.attachment.updateMany({
+        where: { activityId: id },
+        data: { activityId: null, deletedAt: new Date(), deletedById: user.id },
+      });
+      await tx.activity.delete({ where: { id } });
+      await logAudit(tx, {
+        userId: user.id,
+        action: "activity.deleted",
+        entityType: "Activity",
+        entityId: id,
+        previousValue: { type: previous.type, date: previous.date },
+        ...meta,
+      });
+    });
+    return json({ ok: true });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

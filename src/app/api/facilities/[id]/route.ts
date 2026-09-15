@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import {
+  HttpError,
   assertUnchanged,
   errorResponse,
   json,
@@ -77,6 +78,58 @@ export async function PATCH(
       return next;
     });
     return json({ facility });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireApiUser();
+    requireApiPermission(user, "facilities.manage");
+    const { id } = await context.params;
+    await assertFacilityAccess(user, id);
+    const facility = await prisma.facility.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            incidents: true,
+            actions: true,
+            activities: true,
+            reports: true,
+            assignments: true,
+            branches: true,
+            qaRecords: true,
+            handovers: true,
+          },
+        },
+      },
+    });
+    if (!facility) return json({ error: "Not found" }, 404);
+    const leftover = Object.values(facility._count).reduce((sum, count) => sum + count, 0);
+    if (leftover > 0) {
+      throw new HttpError(
+        400,
+        "This facility still has related records. Remove incidents, actions, visits, reports, branches, and assignments first.",
+      );
+    }
+    const meta = requestMeta(request);
+    await prisma.$transaction(async (tx) => {
+      await tx.facility.delete({ where: { id } });
+      await logAudit(tx, {
+        userId: user.id,
+        action: "facility.deleted",
+        entityType: "Facility",
+        entityId: id,
+        previousValue: { name: facility.name },
+        ...meta,
+      });
+    });
+    return json({ ok: true });
   } catch (error) {
     return errorResponse(error);
   }

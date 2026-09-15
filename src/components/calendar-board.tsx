@@ -9,11 +9,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/components/forms";
+import { DeleteButton } from "@/components/record-actions";
 import { toast } from "sonner";
 
 export type CalendarEvent = {
@@ -135,6 +136,7 @@ function WeekGrid({
               >
                 {day.getDate()}
               </span>
+              <span className="mt-1 block text-[11px] text-brand">+ visit</span>
             </button>
           );
         })}
@@ -390,14 +392,31 @@ export function CalendarBoard({
                     isToday && "bg-brand/5",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px]",
-                      isToday && "bg-brand text-white",
-                    )}
-                  >
-                    {day.getDate()}
-                  </span>
+                  <div className="mb-1 flex items-center justify-between gap-1">
+                    <span
+                      className={cn(
+                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px]",
+                        isToday && "bg-brand text-white",
+                      )}
+                    >
+                      {day.getDate()}
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Log visit on ${key}`}
+                      onClick={(click) => {
+                        click.stopPropagation();
+                        setSelectedDate(key);
+                      }}
+                      onKeyDown={(keyEvent) => {
+                        if (keyEvent.key === "Enter") setSelectedDate(key);
+                      }}
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate hover:bg-brand/10 hover:text-brand"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
                   <div className="space-y-1">
                     {dayEvents.slice(0, 3).map((event) => (
                       <span
@@ -508,7 +527,21 @@ export function CalendarBoard({
               {timeLabel(selectedEvent.at) ? ` · ${timeLabel(selectedEvent.at)}` : ""}
             </p>
             <p className="text-[13px] text-slate">{selectedEvent.by}</p>
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {selectedEvent.kind === "visit" || selectedEvent.kind === "activity" ? (
+                <DeleteButton path={`/api/activities/${selectedEvent.id}`} />
+              ) : null}
+              {selectedEvent.kind !== "action" ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSelectedDate(isoDate(new Date(selectedEvent.at)));
+                    setSelectedEvent(null);
+                  }}
+                >
+                  Log another visit
+                </Button>
+              ) : null}
               <Button variant="secondary" onClick={() => setSelectedEvent(null)}>
                 Close
               </Button>

@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiUser } from "@/lib/http";
 import { assertFacilityAccess } from "@/lib/permissions";
+import { incidentLabel } from "@/lib/utils";
 
 export async function GET(
   _request: Request,
@@ -54,7 +55,7 @@ export async function GET(
         id: row.id,
         kind: "incident" as const,
         at: row.createdAt,
-        title: row.title,
+        title: incidentLabel(row),
         by: row.reporter.name,
       })),
       ...handovers.map((row) => ({

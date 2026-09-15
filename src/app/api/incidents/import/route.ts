@@ -1,4 +1,4 @@
-/** POST Excel/CSV incident import. */
+/** POST Excel incident import. Incidents have no title/description — rows are just incidents. */
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
@@ -6,6 +6,7 @@ import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } 
 import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permissions";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
+import { incidentRecordFields } from "@/lib/utils";
 import type { IncidentPriority } from "@/lib/db-types";
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -20,6 +21,20 @@ function cell(row: ExcelJS.Row, index: number) {
   return String(value).trim();
 }
 
+function columnMap(header: ExcelJS.Row) {
+  const map = new Map<string, number>();
+  header.eachCell((_item, colNumber) => {
+    const key = cell(header, colNumber).toLowerCase().replaceAll(" ", "");
+    if (key) map.set(key, colNumber);
+  });
+  return map;
+}
+
+function named(row: ExcelJS.Row, map: Map<string, number>, key: string) {
+  const index = map.get(key);
+  return index ? cell(row, index) : "";
+}
+
 export async function POST(request: Request) {
   try {
     const user = await requireApiUser();
@@ -28,6 +43,7 @@ export async function POST(request: Request) {
     if (!limited.ok) return json({ error: "Too many import requests" }, 429);
 
     const form = await request.formData();
+    const scopedFacilityId = String(form.get("facilityId") || "");
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Excel file is required");
     if (file.size > MAX_IMPORT_BYTES) throw new HttpError(400, "File exceeds 5 MB");
@@ -51,25 +67,23 @@ export async function POST(request: Request) {
     const sheet = workbook.worksheets[0];
     if (!sheet) throw new HttpError(400, "The workbook has no sheets");
 
-    const header = sheet.getRow(1);
-    const expected = [
-      "Facility",
-      "Branch",
-      "Title",
-      "Description",
-      "Priority",
-      "AssigneeEmail",
-      "DueDate",
-    ];
-    const headings = expected.map((_, index) => cell(header, index + 1).toLowerCase());
-    if (headings[0] !== "facility" || headings[2] !== "title") {
+    const columns = columnMap(sheet.getRow(1));
+    if (!columns.has("priority") || (!scopedFacilityId && !columns.has("facility"))) {
       throw new HttpError(
         400,
-        "First row must be: Facility, Branch, Title, Description, Priority, AssigneeEmail, DueDate",
+        scopedFacilityId
+          ? "First row must include Priority. Optional: Branch, AssigneeEmail, DueDate."
+          : "First row must include Facility and Priority. Optional: Branch, AssigneeEmail, DueDate.",
       );
     }
 
     const accessible = await getAccessibleFacilityIds(user);
+    if (scopedFacilityId) {
+      await assertFacilityAccess(user, scopedFacilityId);
+      if (!accessible.includes(scopedFacilityId)) {
+        throw new HttpError(403, "No access to this facility");
+      }
+    }
     const facilities = await prisma.facility.findMany({
       where: { id: { in: accessible } },
       include: { branches: true },
@@ -91,27 +105,30 @@ export async function POST(request: Request) {
 
     for (let index = 2; index <= sheet.rowCount; index += 1) {
       const excelRow = sheet.getRow(index);
-      const facilityName = cell(excelRow, 1);
-      const branchName = cell(excelRow, 2);
-      const title = cell(excelRow, 3);
-      const description = cell(excelRow, 4);
-      const priorityRaw = cell(excelRow, 5).toUpperCase();
-      const assigneeEmail = cell(excelRow, 6).toLowerCase();
-      const dueDateRaw = cell(excelRow, 7);
-      if (!facilityName && !title) continue;
-      if (!facilityName || !title || !description) {
-        failed.push({ row: index, error: "Facility, Title, and Description are required" });
+      const facilityName = named(excelRow, columns, "facility");
+      const branchName = named(excelRow, columns, "branch");
+      const priorityRaw = named(excelRow, columns, "priority").toUpperCase();
+      const assigneeEmail = named(excelRow, columns, "assigneeemail").toLowerCase();
+      const dueDateRaw = named(excelRow, columns, "duedate");
+      if (!facilityName && !priorityRaw && !branchName) continue;
+      if (!priorityRaw || (!scopedFacilityId && !facilityName)) {
+        failed.push({
+          row: index,
+          error: scopedFacilityId ? "Priority is required" : "Facility and Priority are required",
+        });
         continue;
       }
-      const facility = facilityByName.get(facilityName.toLowerCase());
+      const facility = scopedFacilityId
+        ? facilities.find((row) => row.id === scopedFacilityId)
+        : facilityByName.get(facilityName.toLowerCase());
       if (!facility) {
-        failed.push({ row: index, error: `Unknown facility: ${facilityName}` });
+        failed.push({ row: index, error: scopedFacilityId ? "Facility not found" : `Unknown facility: ${facilityName}` });
         continue;
       }
       try {
         await assertFacilityAccess(user, facility.id);
       } catch {
-        failed.push({ row: index, error: `No access to ${facilityName}` });
+        failed.push({ row: index, error: `No access to ${facilityName || facility.name}` });
         continue;
       }
       if (!PRIORITIES.has(priorityRaw)) {
@@ -122,7 +139,7 @@ export async function POST(request: Request) {
         ? facility.branches.find((row) => row.name.toLowerCase() === branchName.toLowerCase())
         : null;
       if (branchName && !branch) {
-        failed.push({ row: index, error: `Unknown branch ${branchName} for ${facilityName}` });
+        failed.push({ row: index, error: `Unknown branch ${branchName} for ${facility.name}` });
         continue;
       }
       const assigneeId = assigneeEmail ? userByEmail.get(assigneeEmail) : null;
@@ -139,10 +156,9 @@ export async function POST(request: Request) {
       const incident = await prisma.$transaction(async (tx) => {
         const next = await tx.incident.create({
           data: {
-            title,
+            ...incidentRecordFields(),
             facilityId: facility.id,
             branchId: branch?.id || null,
-            description,
             reporterId: user.id,
             priority: priorityRaw as IncidentPriority,
             assigneeId: assigneeId || null,
@@ -164,7 +180,7 @@ export async function POST(request: Request) {
           action: "incident.imported",
           entityType: "Incident",
           entityId: next.id,
-          newValue: { title: next.title, facilityId: facility.id, row: index },
+          newValue: { facilityId: facility.id, row: index },
           ...meta,
         });
         await refreshFacilityHealth(facility.id, tx);

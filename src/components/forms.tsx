@@ -97,6 +97,7 @@ export function SimpleForm({
     required?: boolean;
     options?: { value: string; label: string }[];
     textarea?: boolean;
+    defaultValue?: string;
   }>;
   submitLabel: string;
   method?: string;
@@ -130,7 +131,7 @@ export function SimpleForm({
         <div key={field.name} className={field.textarea ? "md:col-span-2" : ""}>
           <Label>{field.label}</Label>
           {field.options ? (
-            <Select name={field.name} required={field.required}>
+            <Select name={field.name} required={field.required} defaultValue={field.defaultValue}>
               {field.options.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -138,12 +139,17 @@ export function SimpleForm({
               ))}
             </Select>
           ) : field.textarea ? (
-            <Textarea name={field.name} required={field.required} />
+            <Textarea
+              name={field.name}
+              required={field.required}
+              defaultValue={field.defaultValue}
+            />
           ) : (
             <Input
               name={field.name}
               type={field.type || "text"}
               required={field.required}
+              defaultValue={field.defaultValue}
             />
           )}
         </div>

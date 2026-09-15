@@ -13,18 +13,9 @@ import { assertFacilityAccess } from "@/lib/permissions";
 import { incidentPatchSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
+import { INCIDENT_TRANSITIONS } from "@/lib/incident-status";
+import { incidentLabel } from "@/lib/utils";
 import type { IncidentStatus } from "@/lib/db-types";
-
-/** Allowed next statuses. To add a flow (e.g. NEW → CLOSED), edit this map. */
-const TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  NEW: ["ASSIGNED", "IN_PROGRESS"],
-  ASSIGNED: ["IN_PROGRESS", "NEW"],
-  IN_PROGRESS: ["AWAITING_QA", "RESOLVED"],
-  AWAITING_QA: ["RESOLVED", "REOPENED"],
-  REOPENED: ["IN_PROGRESS", "AWAITING_QA"],
-  RESOLVED: ["CLOSED", "REOPENED"],
-  CLOSED: ["REOPENED"],
-};
 
 export async function GET(
   _request: Request,
@@ -68,12 +59,10 @@ export async function PATCH(
     assertUnchanged(previous.updatedAt, body.updatedAt);
 
     if (body.status && body.status !== previous.status) {
-      if (!TRANSITIONS[previous.status].includes(body.status)) {
+      const current = previous.status as IncidentStatus;
+      if (!INCIDENT_TRANSITIONS[current].includes(body.status)) {
         throw new HttpError(400, "Invalid status transition");
       }
-    }
-    if (body.status === "RESOLVED" && !body.resolutionInfo && !previous.resolutionInfo) {
-      throw new HttpError(400, "Resolution information is required");
     }
     if (previous.priority === "CRITICAL" && body.status === "CLOSED") {
       assertUnchanged(previous.updatedAt, body.updatedAt ?? previous.updatedAt.toISOString());
@@ -84,8 +73,6 @@ export async function PATCH(
       const next = await tx.incident.update({
         where: { id },
         data: {
-          title: body.title,
-          description: body.description,
           priority: body.priority,
           assigneeId: body.assigneeId,
           status: body.status,
@@ -99,7 +86,6 @@ export async function PATCH(
         "status",
         "assigneeId",
         "priority",
-        "title",
       ];
       for (const field of fields) {
         const oldValue = String(previous[field] ?? "");
@@ -132,7 +118,7 @@ export async function PATCH(
     if (body.assigneeId && body.assigneeId !== previous.assigneeId) {
       await notifyUsers([body.assigneeId], {
         type: "INCIDENT_ASSIGNED",
-        message: `Incident assigned: ${incident.title}`,
+        message: `${incidentLabel(incident)} assigned`,
         relatedType: "Incident",
         relatedId: incident.id,
       });
@@ -146,12 +132,53 @@ export async function PATCH(
           body.status === "REOPENED"
             ? "INCIDENT_REOPENED"
             : "INCIDENT_STATUS_CHANGED",
-        message: `Incident ${incident.title} is now ${body.status.replaceAll("_", " ").toLowerCase()}`,
+        message: `${incidentLabel(incident)} is now ${body.status.replaceAll("_", " ").toLowerCase()}`,
         relatedType: "Incident",
         relatedId: incident.id,
       });
     }
     return json({ incident });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireApiUser();
+    requireApiPermission(user, "incidents.manage");
+    const { id } = await context.params;
+    const previous = await prisma.incident.findUnique({ where: { id } });
+    if (!previous) return json({ error: "Not found" }, 404);
+    await assertFacilityAccess(user, previous.facilityId);
+    const meta = requestMeta(request);
+    await prisma.$transaction(async (tx) => {
+      await tx.incidentHistory.deleteMany({ where: { incidentId: id } });
+      await tx.action.updateMany({ where: { incidentId: id }, data: { incidentId: null } });
+      await tx.qARecord.updateMany({
+        where: { relatedIncidentId: id },
+        data: { relatedIncidentId: null },
+      });
+      await tx.report.updateMany({ where: { incidentId: id }, data: { incidentId: null } });
+      await tx.attachment.updateMany({
+        where: { incidentId: id },
+        data: { incidentId: null, deletedAt: new Date(), deletedById: user.id },
+      });
+      await tx.incident.delete({ where: { id } });
+      await logAudit(tx, {
+        userId: user.id,
+        action: "incident.deleted",
+        entityType: "Incident",
+        entityId: id,
+        previousValue: { status: previous.status },
+        ...meta,
+      });
+      await refreshFacilityHealth(previous.facilityId, tx);
+    });
+    return json({ ok: true });
   } catch (error) {
     return errorResponse(error);
   }

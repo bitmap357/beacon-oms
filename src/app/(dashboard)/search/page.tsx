@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
-import { labelize } from "@/lib/utils";
+import { incidentLabel, labelize } from "@/lib/utils";
 
 export default async function SearchPage({
   searchParams,
@@ -15,7 +15,7 @@ export default async function SearchPage({
   const user = await requireUser();
   const { q = "" } = await searchParams;
   const query = q.trim();
-  const ids = await getAccessibleFacilityIds(user);
+  const ids = await getScopedFacilityIds(user);
   const results =
     query.length < 2
       ? { facilities: [], users: [], incidents: [], activities: [], actions: [], reports: [] }
@@ -29,7 +29,14 @@ export default async function SearchPage({
             take: 8,
           }),
           incidents: await prisma.incident.findMany({
-            where: { facilityId: { in: ids }, title: { contains: query } },
+            where: {
+              facilityId: { in: ids },
+              OR: [
+                { facility: { name: { contains: query } } },
+                { status: { contains: query } },
+                { priority: { contains: query } },
+              ],
+            },
             take: 8,
           }),
           activities: await prisma.activity.findMany({
@@ -79,7 +86,9 @@ export default async function SearchPage({
                               ? "/reports"
                               : `/facilities/${"facilityId" in row ? row.facilityId : ""}`;
                   const label =
-                    "name" in row && row.name
+                    kind === "incidents"
+                      ? incidentLabel(row)
+                      : "name" in row && row.name
                       ? row.name
                       : "title" in row && row.title
                         ? row.title

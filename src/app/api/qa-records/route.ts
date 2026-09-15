@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       include: {
         facility: { select: { name: true } },
         qaUser: { select: { name: true } },
-        relatedIncident: { select: { title: true, id: true } },
+        relatedIncident: { select: { id: true, createdAt: true } },
       },
       orderBy: { qaDate: "desc" },
       take: 50,

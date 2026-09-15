@@ -6,6 +6,7 @@ import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permission
 import { incidentSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
+import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 
 export async function GET(request: Request) {
   try {
@@ -55,10 +56,9 @@ export async function POST(request: Request) {
     const incident = await prisma.$transaction(async (tx) => {
       const next = await tx.incident.create({
         data: {
-          title: body.title,
+          ...incidentRecordFields(),
           facilityId: body.facilityId,
           branchId: body.branchId || null,
-          description: body.description,
           reporterId: user.id,
           priority: body.priority,
           assigneeId: body.assigneeId || null,
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         action: "incident.created",
         entityType: "Incident",
         entityId: next.id,
-        newValue: { title: next.title, priority: next.priority },
+        newValue: { priority: next.priority, facilityId: next.facilityId },
         ...meta,
       });
       await refreshFacilityHealth(body.facilityId, tx);
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     if (incident.assigneeId) {
       await notifyUsers([incident.assigneeId], {
         type: "INCIDENT_ASSIGNED",
-        message: `Incident assigned: ${incident.title}`,
+        message: `${incidentLabel(incident)} assigned`,
         relatedType: "Incident",
         relatedId: incident.id,
       });

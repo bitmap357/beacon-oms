@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
 
@@ -37,11 +37,9 @@ export function IncidentForm({
       await apiRequest("/api/incidents", {
         facilityId: formData.get("facilityId"),
         branchId: formData.get("branchId") || null,
-        title: formData.get("title"),
         priority: formData.get("priority"),
         assigneeId: formData.get("assigneeId") || null,
         dueDate: formData.get("dueDate") || null,
-        description: formData.get("description"),
       });
       toast.success("Incident created");
       router.refresh();
@@ -78,10 +76,6 @@ export function IncidentForm({
           ))}
         </Select>
       </div>
-      <div className="md:col-span-2">
-        <Label>Title</Label>
-        <Input name="title" required />
-      </div>
       <div>
         <Label>Priority</Label>
         <Select name="priority" required defaultValue="MEDIUM">
@@ -107,17 +101,13 @@ export function IncidentForm({
         <Input name="dueDate" type="date" />
       </div>
       <div className="md:col-span-2">
-        <Label>Description</Label>
-        <Textarea name="description" required />
-      </div>
-      <div className="md:col-span-2">
         <Button>Create incident</Button>
       </div>
     </form>
   );
 }
 
-export function IncidentImportForm() {
+export function IncidentImportForm({ facilityId }: { facilityId?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -127,6 +117,7 @@ export function IncidentImportForm() {
       toast.error("Choose an Excel file first");
       return;
     }
+    if (facilityId) formData.set("facilityId", facilityId);
     setPending(true);
     try {
       const res = await fetch("/api/incidents/import", {
@@ -150,8 +141,9 @@ export function IncidentImportForm() {
   return (
     <form action={onSubmit} className="space-y-3">
       <p className="text-[13px] text-slate">
-        Columns: Facility, Branch, Title, Description, Priority, AssigneeEmail, DueDate.
-        Download the template if you need the exact headings.
+        {facilityId
+          ? "Columns: Branch, Priority, AssigneeEmail, DueDate. Facility is this site."
+          : "Columns: Facility, Branch, Priority, AssigneeEmail, DueDate. Download the template if you need the exact headings."}
       </p>
       <div>
         <Label htmlFor="incident-import">Excel workbook (.xlsx)</Label>
@@ -166,7 +158,9 @@ export function IncidentImportForm() {
       <div className="flex flex-wrap gap-2">
         <Button disabled={pending}>{pending ? "Importing..." : "Upload incidents"}</Button>
         <Button asChild variant="secondary">
-          <a href="/api/incidents/import/template">Download template</a>
+          <a href={facilityId ? `/api/incidents/import/template?facilityId=${facilityId}` : "/api/incidents/import/template"}>
+            Download template
+          </a>
         </Button>
       </div>
     </form>

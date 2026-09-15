@@ -1,7 +1,7 @@
 /** Handover list. Start a handover from the facility page so the snapshot is built server-side. */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/utils";
 
 export default async function HandoversPage() {
   const user = await requireUser();
-  const ids = await getAccessibleFacilityIds(user);
+  const ids = await getScopedFacilityIds(user);
   const handovers = await prisma.handover.findMany({
     where: { facilityId: { in: ids } },
     include: {

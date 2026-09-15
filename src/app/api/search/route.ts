@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiUser } from "@/lib/http";
 import { getAccessibleFacilityIds } from "@/lib/permissions";
+import { incidentLabel } from "@/lib/utils";
 
 export async function GET(request: Request) {
   try {
@@ -24,8 +25,15 @@ export async function GET(request: Request) {
           take: 8,
         }),
         prisma.incident.findMany({
-          where: { facilityId: { in: ids }, title: { contains: q } },
-          select: { id: true, title: true, status: true },
+          where: {
+            facilityId: { in: ids },
+            OR: [
+              { facility: { name: { contains: q } } },
+              { status: { contains: q } },
+              { priority: { contains: q } },
+            ],
+          },
+          select: { id: true, status: true, createdAt: true },
           take: 8,
         }),
         prisma.activity.findMany({
@@ -49,7 +57,12 @@ export async function GET(request: Request) {
       results: [
         ...facilities.map((row) => ({ kind: "facility", ...row })),
         ...users.map((row) => ({ kind: "user", ...row })),
-        ...incidents.map((row) => ({ kind: "incident", ...row })),
+        ...incidents.map((row) => ({
+          kind: "incident",
+          id: row.id,
+          name: incidentLabel(row),
+          status: row.status,
+        })),
         ...activities.map((row) => ({ kind: "activity", ...row })),
         ...actions.map((row) => ({ kind: "action", ...row })),
         ...reports.map((row) => ({ kind: "report", ...row })),

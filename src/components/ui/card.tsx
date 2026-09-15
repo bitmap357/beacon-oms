@@ -1,4 +1,5 @@
 /** Raised surface card. */
+import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({
@@ -45,14 +46,31 @@ export function CardContent({
 export function MetricCard({
   label,
   value,
+  href,
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
+  href?: string;
+  icon?: ComponentType<{ className?: string }>;
 }) {
-  return (
-    <Card className="p-4">
-      <p className="text-[12px] text-slate">{label}</p>
+  const inner = (
+    <Card className={cn("p-4", href && "transition-colors hover:border-brand/40")}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[12px] text-slate">{label}</p>
+        {Icon ? (
+          <span className="rounded-[10px] bg-brand/10 p-1.5 text-brand">
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+      </div>
       <p className="font-heading mt-1 text-[22px] text-ink">{value}</p>
     </Card>
+  );
+  if (!href) return inner;
+  return (
+    <a href={href} className="block no-underline">
+      {inner}
+    </a>
   );
 }
