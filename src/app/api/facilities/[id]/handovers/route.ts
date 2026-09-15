@@ -5,6 +5,7 @@ import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib
 import { assertFacilityAccess } from "@/lib/permissions";
 import { handoverSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 import { toJsonString } from "@/lib/db-types";
 
 async function buildSnapshot(facilityId: string) {
@@ -27,9 +28,9 @@ async function buildSnapshot(facilityId: string) {
     prisma.incident.findMany({
       where: {
         facilityId,
-        status: { in: ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] },
+        status: { in: [...OPEN_INCIDENT_STATUSES] },
       },
-      select: { id: true, title: true, priority: true, status: true },
+      select: { id: true, description: true, priority: true, status: true },
     }),
     prisma.action.findMany({
       where: {

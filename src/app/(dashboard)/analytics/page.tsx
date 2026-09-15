@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart } from "@/components/charts";
 import { labelize } from "@/lib/utils";
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 
 export default async function AnalyticsPage() {
   const user = await requireUser();
@@ -53,7 +54,7 @@ export default async function AnalyticsPage() {
         prisma.incident.count({
           where: {
             assigneeId: member.id,
-            status: { in: ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] },
+            status: { in: [...OPEN_INCIDENT_STATUSES] },
           },
         }),
         prisma.action.count({
@@ -77,7 +78,11 @@ export default async function AnalyticsPage() {
 
   return (
     <div>
-      <PageHeader title="Analytics" description="Incident, facility, and team insights." />
+      <PageHeader
+        title="Analytics"
+        description="Incident, facility, and team insights."
+        illustration="/brand/illustrations/page-analytics.png"
+      />
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Incidents over time</h2>

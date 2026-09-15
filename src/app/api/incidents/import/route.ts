@@ -1,13 +1,14 @@
-/** POST Excel incident import. Incidents have no title/description — rows are just incidents. */
+/** POST Excel incident import. Facility is chosen in the UI, never typed in the sheet. */
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
-import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permissions";
+import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
+import { INCIDENT_STATUSES } from "@/lib/incident-status";
 import { incidentRecordFields } from "@/lib/utils";
-import type { IncidentPriority } from "@/lib/db-types";
+import type { IncidentPriority, IncidentStatus } from "@/lib/db-types";
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 500;
@@ -44,6 +45,9 @@ export async function POST(request: Request) {
 
     const form = await request.formData();
     const scopedFacilityId = String(form.get("facilityId") || "");
+    if (!scopedFacilityId) throw new HttpError(400, "Choose a facility in Beacon before uploading");
+    await assertFacilityAccess(user, scopedFacilityId);
+
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Excel file is required");
     if (file.size > MAX_IMPORT_BYTES) throw new HttpError(400, "File exceeds 5 MB");
@@ -68,32 +72,24 @@ export async function POST(request: Request) {
     if (!sheet) throw new HttpError(400, "The workbook has no sheets");
 
     const columns = columnMap(sheet.getRow(1));
-    if (!columns.has("priority") || (!scopedFacilityId && !columns.has("facility"))) {
+    if (!columns.has("incident") || !columns.has("status") || !columns.has("datereported")) {
       throw new HttpError(
         400,
-        scopedFacilityId
-          ? "First row must include Priority. Optional: Branch, AssigneeEmail, DueDate."
-          : "First row must include Facility and Priority. Optional: Branch, AssigneeEmail, DueDate.",
+        "First row must include Incident, Status, and DateReported. Optional: Branch, Priority, AssigneeEmail, DueDate.",
       );
     }
 
-    const accessible = await getAccessibleFacilityIds(user);
-    if (scopedFacilityId) {
-      await assertFacilityAccess(user, scopedFacilityId);
-      if (!accessible.includes(scopedFacilityId)) {
-        throw new HttpError(403, "No access to this facility");
-      }
-    }
-    const facilities = await prisma.facility.findMany({
-      where: { id: { in: accessible } },
+    const facility = await prisma.facility.findUnique({
+      where: { id: scopedFacilityId },
       include: { branches: true },
     });
+    if (!facility) throw new HttpError(400, "Facility not found");
     const users = await prisma.user.findMany({
       where: { isActive: true },
       select: { id: true, email: true },
     });
-    const facilityByName = new Map(facilities.map((row) => [row.name.trim().toLowerCase(), row]));
     const userByEmail = new Map(users.map((row) => [row.email.toLowerCase(), row.id]));
+    const canClose = hasPermission(user.role, "qa.manage");
 
     const created: string[] = [];
     const failed: Array<{ row: number; error: string }> = [];
@@ -105,41 +101,46 @@ export async function POST(request: Request) {
 
     for (let index = 2; index <= sheet.rowCount; index += 1) {
       const excelRow = sheet.getRow(index);
-      const facilityName = named(excelRow, columns, "facility");
+      const incidentText = named(excelRow, columns, "incident");
+      const statusRaw = named(excelRow, columns, "status").toUpperCase().replaceAll(" ", "_");
+      const statusAliases: Record<string, string> = {
+        ASSIGNED: "NEW",
+        AWAITING_QA: "IN_PROGRESS",
+        RESOLVED: "CLOSED",
+      };
+      const statusMapped = statusAliases[statusRaw] || statusRaw;
+      const reportedRaw = named(excelRow, columns, "datereported");
       const branchName = named(excelRow, columns, "branch");
-      const priorityRaw = named(excelRow, columns, "priority").toUpperCase();
+      const priorityRaw = named(excelRow, columns, "priority").toUpperCase() || "MEDIUM";
       const assigneeEmail = named(excelRow, columns, "assigneeemail").toLowerCase();
       const dueDateRaw = named(excelRow, columns, "duedate");
-      if (!facilityName && !priorityRaw && !branchName) continue;
-      if (!priorityRaw || (!scopedFacilityId && !facilityName)) {
-        failed.push({
-          row: index,
-          error: scopedFacilityId ? "Priority is required" : "Facility and Priority are required",
-        });
+      if (!incidentText && !statusRaw && !reportedRaw) continue;
+      if (!incidentText || !statusRaw || !reportedRaw) {
+        failed.push({ row: index, error: "Incident, Status, and DateReported are required" });
         continue;
       }
-      const facility = scopedFacilityId
-        ? facilities.find((row) => row.id === scopedFacilityId)
-        : facilityByName.get(facilityName.toLowerCase());
-      if (!facility) {
-        failed.push({ row: index, error: scopedFacilityId ? "Facility not found" : `Unknown facility: ${facilityName}` });
+      if (!INCIDENT_STATUSES.includes(statusMapped as IncidentStatus)) {
+        failed.push({ row: index, error: "Status must be NEW, IN_PROGRESS, ON_HOLD, REOPENED, or CLOSED" });
         continue;
       }
-      try {
-        await assertFacilityAccess(user, facility.id);
-      } catch {
-        failed.push({ row: index, error: `No access to ${facilityName || facility.name}` });
+      if (statusMapped === "CLOSED" && !canClose) {
+        failed.push({ row: index, error: "Only PM/QA can import Closed incidents" });
         continue;
       }
       if (!PRIORITIES.has(priorityRaw)) {
         failed.push({ row: index, error: "Priority must be LOW, MEDIUM, HIGH, or CRITICAL" });
         continue;
       }
+      const reportedAt = new Date(reportedRaw);
+      if (Number.isNaN(reportedAt.getTime())) {
+        failed.push({ row: index, error: "DateReported is not a valid date" });
+        continue;
+      }
       const branch = branchName
         ? facility.branches.find((row) => row.name.toLowerCase() === branchName.toLowerCase())
         : null;
       if (branchName && !branch) {
-        failed.push({ row: index, error: `Unknown branch ${branchName} for ${facility.name}` });
+        failed.push({ row: index, error: `Unknown branch ${branchName}` });
         continue;
       }
       const assigneeId = assigneeEmail ? userByEmail.get(assigneeEmail) : null;
@@ -156,14 +157,15 @@ export async function POST(request: Request) {
       const incident = await prisma.$transaction(async (tx) => {
         const next = await tx.incident.create({
           data: {
-            ...incidentRecordFields(),
+            ...incidentRecordFields({ description: incidentText }),
             facilityId: facility.id,
             branchId: branch?.id || null,
             reporterId: user.id,
             priority: priorityRaw as IncidentPriority,
             assigneeId: assigneeId || null,
             dueDate,
-            status: assigneeId ? "ASSIGNED" : "NEW",
+            reportedAt,
+            status: statusMapped as IncidentStatus,
           },
         });
         await tx.incidentHistory.create({

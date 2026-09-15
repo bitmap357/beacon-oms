@@ -50,6 +50,7 @@ export default async function AuditPage({
       <PageHeader
         title="Audit trail"
         description="Append-only history of important operational changes."
+        illustration="/brand/illustrations/page-audit.png"
         actions={
           <a
             className="text-sm text-brand"

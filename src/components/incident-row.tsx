@@ -1,6 +1,6 @@
 "use client";
 
-/** Inline status + add-action on the incidents list. */
+/** Inline status + add-action + optional comment on the incidents list. */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,21 +10,23 @@ import { TonePill } from "@/components/ui/status-pill";
 import { TD, TR } from "@/components/ui/table";
 import { apiRequest } from "@/components/forms";
 import { EditDeleteControls } from "@/components/record-actions";
-import { nextIncidentStatuses } from "@/lib/incident-status";
+import { incidentStatusOptions } from "@/lib/incident-status";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { toast } from "sonner";
-import type { IncidentStatus } from "@/lib/db-types";
+import { MessageSquare, Plus } from "lucide-react";
 
 type IncidentRowData = {
   id: string;
   status: string;
   priority: string;
+  description: string;
   facilityId: string;
   facilityName: string;
   branchName?: string | null;
   assigneeId?: string | null;
   assigneeName?: string | null;
   createdAt: string;
+  reportedAt: string;
   updatedAt: string;
   actionCount: number;
   resolutionInfo?: string | null;
@@ -34,16 +36,21 @@ export function IncidentRow({
   incident,
   users,
   canManage,
+  canUpdate,
+  canClose,
   canAddAction,
 }: {
   incident: IncidentRowData;
   users: { id: string; name: string }[];
   canManage: boolean;
+  canUpdate: boolean;
+  canClose: boolean;
   canAddAction: boolean;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
-  const statuses = nextIncidentStatuses(incident.status as IncidentStatus);
+  const [commenting, setCommenting] = useState(false);
+  const statuses = incidentStatusOptions(canClose);
 
   async function onStatus(status: string) {
     if (status === incident.status) return;
@@ -78,6 +85,19 @@ export function IncidentRow({
     }
   }
 
+  async function onComment(formData: FormData) {
+    try {
+      await apiRequest(`/api/incidents/${incident.id}/comments`, {
+        body: formData.get("body"),
+      });
+      toast.success("Comment added");
+      setCommenting(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not comment");
+    }
+  }
+
   return (
     <>
       <TR>
@@ -98,7 +118,7 @@ export function IncidentRow({
           </TonePill>
         </TD>
         <TD>
-          {canManage ? (
+          {canUpdate ? (
             <Select
               defaultValue={incident.status}
               onChange={(event) => onStatus(event.target.value)}
@@ -120,11 +140,16 @@ export function IncidentRow({
           </Link>
         </TD>
         <TD>{incident.assigneeName || "—"}</TD>
-        <TD className="font-mono text-[12px]">{formatDate(incident.createdAt)}</TD>
+        <TD className="font-mono text-[12px]">{formatDate(incident.reportedAt)}</TD>
         <TD>
           <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setCommenting((value) => !value)}>
+              <MessageSquare className="h-3.5 w-3.5" />
+              {commenting ? "Close" : "Comment"}
+            </Button>
             {canAddAction ? (
               <Button type="button" variant="secondary" size="sm" onClick={() => setAdding((value) => !value)}>
+                <Plus className="h-3.5 w-3.5" />
                 {adding ? "Close" : "Add action"}
               </Button>
             ) : null}
@@ -132,6 +157,13 @@ export function IncidentRow({
               <EditDeleteControls
                 path={`/api/incidents/${incident.id}`}
                 fields={[
+                  {
+                    name: "description",
+                    label: "Incident",
+                    textarea: true,
+                    required: true,
+                    defaultValue: incident.description,
+                  },
                   {
                     name: "resolutionInfo",
                     label: "Resolution (optional)",
@@ -141,7 +173,7 @@ export function IncidentRow({
                   {
                     name: "updatedAt",
                     label: "Current timestamp",
-                    options: [{ value: incident.updatedAt, label: "Use latest" }],
+                    type: "hidden",
                     defaultValue: incident.updatedAt,
                   },
                 ]}
@@ -150,6 +182,17 @@ export function IncidentRow({
           </div>
         </TD>
       </TR>
+      {commenting ? (
+        <TR>
+          <TD colSpan={8}>
+            <form action={onComment} className="space-y-3 rounded-[12px] border border-hairline bg-surface p-4">
+              <Label>Comment</Label>
+              <Textarea name="body" required placeholder="Follow-up, waiting on a response, notes…" />
+              <Button>Add comment</Button>
+            </form>
+          </TD>
+        </TR>
+      ) : null}
       {adding ? (
         <TR>
           <TD colSpan={8}>

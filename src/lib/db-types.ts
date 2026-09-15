@@ -28,11 +28,9 @@ export type ActivityType =
 export type IncidentPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type IncidentStatus =
   | "NEW"
-  | "ASSIGNED"
   | "IN_PROGRESS"
-  | "AWAITING_QA"
+  | "ON_HOLD"
   | "REOPENED"
-  | "RESOLVED"
   | "CLOSED";
 export type ActionStatus =
   | "NOT_STARTED"

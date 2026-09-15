@@ -4,9 +4,10 @@
  */
 import { prisma } from "@/lib/db";
 import { incidentLabel, labelize } from "@/lib/utils";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 
-const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
-const OPEN_ACTIONS = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED"] as const;
+const OPEN = OPEN_INCIDENT_STATUSES;
+const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
 
 export async function buildOperationalReport(input: {
   facilityId: string;
@@ -52,9 +53,7 @@ export async function buildOperationalReport(input: {
   const openIncidents = incidents.filter((row) =>
     OPEN.includes(row.status as (typeof OPEN)[number]),
   );
-  const closedIncidents = incidents.filter(
-    (row) => row.status === "CLOSED" || row.status === "RESOLVED",
-  );
+  const closedIncidents = incidents.filter((row) => row.status === "CLOSED");
   const overdueActions = actions.filter(
     (row) =>
       row.dueDate < new Date() &&

@@ -52,7 +52,7 @@ export default async function ActionsPage({
         facilityId: { in: scopedIds },
         status: { in: [...OPEN_INCIDENT_STATUSES] },
       },
-      select: { id: true, title: true, createdAt: true },
+      select: { id: true, title: true, description: true, createdAt: true, reportedAt: true },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
@@ -64,6 +64,7 @@ export default async function ActionsPage({
       <PageHeader
         title="Actions"
         description="Follow-up work required by incidents, with owners and due dates."
+        illustration="/brand/illustrations/page-actions.png"
         actions={<ScopeFilter includeMine />}
       />
       <Card className="mb-6 p-5">
@@ -109,7 +110,10 @@ export default async function ActionsPage({
         />
       </Card>
       {actions.length === 0 ? (
-        <IllustratedEmpty title="No actions in this view. Create one above, or switch the filter to All." />
+        <IllustratedEmpty
+          title="No actions in this view. Create one above, or switch the filter to All."
+          image="/brand/illustrations/page-actions.png"
+        />
       ) : (
         <Card>
           <Table>
@@ -177,7 +181,7 @@ export default async function ActionsPage({
                             {
                               name: "updatedAt",
                               label: "Current timestamp",
-                              options: [{ value: row.updatedAt.toISOString(), label: "Use latest" }],
+                              type: "hidden",
                               defaultValue: row.updatedAt.toISOString(),
                             },
                           ]}

@@ -62,12 +62,22 @@ async function run() {
     },
   });
   for (const action of dueSoon) {
-    await notifyUsers([action.ownerId], {
-      type: "ACTION_DUE_SOON",
-      message: `Action due soon: ${action.title}`,
-      relatedType: "Action",
-      relatedId: action.id,
+    const already = await prisma.notification.findFirst({
+      where: {
+        userId: action.ownerId,
+        type: "ACTION_DUE_SOON",
+        relatedId: action.id,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
     });
+    if (!already) {
+      await notifyUsers([action.ownerId], {
+        type: "ACTION_DUE_SOON",
+        message: `Action due soon: ${action.title}`,
+        relatedType: "Action",
+        relatedId: action.id,
+      });
+    }
   }
 }
 

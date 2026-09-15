@@ -28,12 +28,14 @@ export async function GET(request: Request) {
           where: {
             facilityId: { in: ids },
             OR: [
+              { description: { contains: q } },
+              { title: { contains: q } },
               { facility: { name: { contains: q } } },
               { status: { contains: q } },
               { priority: { contains: q } },
             ],
           },
-          select: { id: true, status: true, createdAt: true },
+          select: { id: true, status: true, description: true, reportedAt: true, createdAt: true },
           take: 8,
         }),
         prisma.activity.findMany({
@@ -47,7 +49,14 @@ export async function GET(request: Request) {
           take: 8,
         }),
         prisma.report.findMany({
-          where: { facilityId: { in: ids } },
+          where: {
+            facilityId: { in: ids },
+            OR: [
+              { type: { contains: q } },
+              { status: { contains: q } },
+              { facility: { name: { contains: q } } },
+            ],
+          },
           select: { id: true, type: true, status: true },
           take: 8,
         }),

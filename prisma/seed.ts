@@ -215,7 +215,7 @@ async function main() {
       branchId: "br-focos-records",
       description: "Discharge summaries sit in the print queue for 20+ minutes.",
       priority: "MEDIUM",
-      status: "ASSIGNED",
+      status: "NEW",
       assigneeId: pm2.id,
       days: 6,
     },
@@ -236,7 +236,7 @@ async function main() {
       branchId: "br-ridge-theatre",
       description: "Theatre invoices omit the new procedure codes.",
       priority: "HIGH",
-      status: "AWAITING_QA",
+      status: "IN_PROGRESS",
       assigneeId: barbara.id,
       days: 18,
     },
@@ -278,13 +278,18 @@ async function main() {
       branchId: "br-focos-main",
       description: "Four new staff cannot chart after last week's onboarding.",
       priority: "MEDIUM",
-      status: "RESOLVED",
+      status: "CLOSED",
       assigneeId: barbara.id,
       days: 21,
     },
   ];
 
+  await prisma.incident.updateMany({ where: { status: "ASSIGNED" }, data: { status: "NEW" } });
+  await prisma.incident.updateMany({ where: { status: "AWAITING_QA" }, data: { status: "IN_PROGRESS" } });
+  await prisma.incident.updateMany({ where: { status: "RESOLVED" }, data: { status: "CLOSED" } });
+
   const incidentIds = sampleIncidents.map((row) => row.id);
+  await prisma.incidentComment.deleteMany({ where: { incidentId: { in: incidentIds } } });
   await prisma.action.deleteMany({ where: { incidentId: { in: incidentIds } } });
   await prisma.incidentHistory.deleteMany({ where: { incidentId: { in: incidentIds } } });
   await prisma.incident.deleteMany({ where: { id: { in: incidentIds } } });
@@ -302,7 +307,8 @@ async function main() {
         priority: row.priority,
         status: row.status,
         createdAt: daysAgo(row.days),
-        resolvedAt: row.status === "RESOLVED" || row.status === "CLOSED" ? daysAgo(row.days - 3) : null,
+        reportedAt: daysAgo(row.days),
+        resolvedAt: row.status === "CLOSED" ? daysAgo(row.days - 3) : null,
         closedAt: row.status === "CLOSED" ? daysAgo(row.days - 2) : null,
       },
     });

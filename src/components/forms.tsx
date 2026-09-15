@@ -6,6 +6,7 @@
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -77,7 +78,10 @@ export function FacilityForm({
         <Input name="contactInfo" />
       </div>
       <div className="md:col-span-2">
-        <Button>Create facility</Button>
+        <Button>
+          <Plus className="h-4 w-4" />
+          Create facility
+        </Button>
       </div>
     </form>
   );
@@ -127,33 +131,37 @@ export function SimpleForm({
   }
   return (
     <form action={onSubmit} className="grid gap-3 md:grid-cols-2">
-      {fields.map((field) => (
-        <div key={field.name} className={field.textarea ? "md:col-span-2" : ""}>
-          <Label>{field.label}</Label>
-          {field.options ? (
-            <Select name={field.name} required={field.required} defaultValue={field.defaultValue}>
-              {field.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
-          ) : field.textarea ? (
-            <Textarea
-              name={field.name}
-              required={field.required}
-              defaultValue={field.defaultValue}
-            />
-          ) : (
-            <Input
-              name={field.name}
-              type={field.type || "text"}
-              required={field.required}
-              defaultValue={field.defaultValue}
-            />
-          )}
-        </div>
-      ))}
+      {fields.map((field) =>
+        field.type === "hidden" ? (
+          <input key={field.name} type="hidden" name={field.name} value={field.defaultValue ?? ""} />
+        ) : (
+          <div key={field.name} className={field.textarea ? "md:col-span-2" : ""}>
+            <Label>{field.label}</Label>
+            {field.options ? (
+              <Select name={field.name} required={field.required} defaultValue={field.defaultValue}>
+                {field.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            ) : field.textarea ? (
+              <Textarea
+                name={field.name}
+                required={field.required}
+                defaultValue={field.defaultValue}
+              />
+            ) : (
+              <Input
+                name={field.name}
+                type={field.type || "text"}
+                required={field.required}
+                defaultValue={field.defaultValue}
+              />
+            )}
+          </div>
+        ),
+      )}
       <div className="md:col-span-2">
         <Button>{submitLabel}</Button>
       </div>
@@ -169,6 +177,9 @@ export function GenerateReportForm({
   const router = useRouter();
   const [facilityId, setFacilityId] = useState(facilities[0]?.id || "");
   const branches = facilities.find((row) => row.id === facilityId)?.branches || [];
+  const today = new Date();
+  const fromDefault = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+  const toDefault = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   async function onSubmit(formData: FormData) {
     try {
@@ -215,14 +226,17 @@ export function GenerateReportForm({
       </div>
       <div>
         <Label>From</Label>
-        <Input name="from" type="date" required />
+        <Input name="from" type="date" required defaultValue={fromDefault} />
       </div>
       <div>
         <Label>To</Label>
-        <Input name="to" type="date" required />
+        <Input name="to" type="date" required defaultValue={toDefault} />
       </div>
       <div className="md:col-span-2">
-        <Button>Generate operational report</Button>
+        <Button>
+          <FileText className="h-4 w-4" />
+          Generate operational report
+        </Button>
       </div>
     </form>
   );

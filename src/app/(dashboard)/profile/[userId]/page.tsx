@@ -53,6 +53,7 @@ export default async function ProfilePage({
       <PageHeader
         title={person.name}
         description={`${formatRole(person.role)} · ${person.isActive ? "Active" : "Deactivated"}`}
+        illustration="/brand/illustrations/page-profile.png"
       />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard

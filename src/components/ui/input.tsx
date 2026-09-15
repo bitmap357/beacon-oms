@@ -6,7 +6,7 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "h-9 w-full rounded-[10px] border border-hairline bg-surface-raised px-3 text-sm text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "h-10 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-[15px] text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "min-h-24 w-full rounded-[10px] border border-hairline bg-surface-raised px-3 py-2 text-sm text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "min-h-24 w-full rounded-xl border border-hairline bg-surface-raised px-3 py-2 text-[15px] text-ink placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
         className,
       )}
       {...props}
@@ -32,7 +32,7 @@ export function Textarea({
 export function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
     <label
-      className={cn("mb-1 block text-[13px] text-slate", className)}
+      className={cn("mb-1 block text-[14px] text-slate", className)}
       {...props}
     />
   );
@@ -42,7 +42,7 @@ export function Select({ className, ...props }: React.ComponentProps<"select">) 
   return (
     <select
       className={cn(
-        "h-9 w-full rounded-[10px] border border-hairline bg-surface-raised px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        "h-10 w-full rounded-xl border border-hairline bg-surface-raised px-3 text-[15px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
         className,
       )}
       {...props}

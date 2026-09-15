@@ -5,9 +5,9 @@
 :root {
   --ink: #1c2430;
   --slate: #5b6472;
-  --hairline: #e3e1d9;
-  --surface: #f4f5f3;
-  --surface-raised: #ffffff;
+  --hairline: #e6dfd0;
+  --surface: #f6f1e6;
+  --surface-raised: #fffdf8;
   --brand: #1558d6;
   --brand-deep: #0b3ba8;
   --gold: #e8b923;
@@ -29,7 +29,7 @@
   --primary-foreground: #ffffff;
   --secondary: var(--surface);
   --secondary-foreground: var(--ink);
-  --muted: #ecece8;
+  --muted: #efe8d8;
   --muted-foreground: var(--slate);
   --accent: #e8eefc;
   --accent-foreground: var(--brand-deep);
@@ -37,7 +37,7 @@
   --border: var(--hairline);
   --input: var(--hairline);
   --ring: var(--brand);
-  --radius: 12px;
+  --radius: 14px;
   color-scheme: light;
 }
 
@@ -102,7 +102,7 @@
   --color-status-critical-fg: var(--status-critical-fg);
   --color-status-inactive-bg: var(--status-inactive-bg);
   --color-status-inactive-fg: var(--status-inactive-fg);
-  --font-sans: var(--font-plex-sans);
+  --font-sans: var(--font-jakarta);
   --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-plex-mono);
   --radius-sm: calc(var(--radius) - 4px);
@@ -118,9 +118,9 @@ html,
 body {
   background: var(--surface);
   color: var(--ink);
-  font-family: var(--font-plex-sans), "IBM Plex Sans", sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 h1,

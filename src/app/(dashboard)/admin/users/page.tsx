@@ -17,7 +17,11 @@ export default async function UsersAdminPage() {
 
   return (
     <div>
-      <PageHeader title="Users" description="Roles, activation, and password resets." />
+      <PageHeader
+        title="Users"
+        description="Roles, activation, and password resets."
+        illustration="/brand/illustrations/page-users.png"
+      />
       {canManage ? (
         <Card className="mb-6 p-5">
           <p className="mb-3 text-[12px] text-slate">{CREDENTIAL_HINT}</p>

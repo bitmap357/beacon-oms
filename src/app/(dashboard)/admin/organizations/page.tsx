@@ -26,6 +26,7 @@ export default async function OrganizationsPage() {
       <PageHeader
         title="Organizations"
         description="Spagad owns facilities. Facilities optionally have branches. Incidents, actions, and reports hang off that tree."
+        illustration="/brand/illustrations/page-organizations.png"
       />
       <OrganizationTree
         canManage={user.role === "ADMIN"}

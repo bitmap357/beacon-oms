@@ -1,27 +1,23 @@
-/** GET the Excel template for imports. Incidents have no title or description. */
+/** GET the Excel template for imports. Facility is chosen in the app, not in the sheet. */
 import ExcelJS from "exceljs";
 import { requireApiUser } from "@/lib/http";
 import { errorResponse } from "@/lib/http";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     await requireApiUser();
-    const scoped = Boolean(new URL(request.url).searchParams.get("facilityId"));
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Incidents");
-    if (scoped) {
-      sheet.addRow(["Branch", "Priority", "AssigneeEmail", "DueDate"]);
-      sheet.addRow(["Laboratory", "HIGH", "dev@spagad.local", "2026-09-21"]);
-    } else {
-      sheet.addRow(["Facility", "Branch", "Priority", "AssigneeEmail", "DueDate"]);
-      sheet.addRow([
-        "Focos Orthopedics Hospital",
-        "Laboratory",
-        "HIGH",
-        "dev@spagad.local",
-        "2026-09-21",
-      ]);
-    }
+    sheet.addRow(["Incident", "Status", "DateReported", "Branch", "Priority", "AssigneeEmail", "DueDate"]);
+    sheet.addRow([
+      "Lab results not posting to HIS",
+      "NEW",
+      "2026-09-15",
+      "Laboratory",
+      "HIGH",
+      "dev@spagad.local",
+      "2026-09-21",
+    ]);
     sheet.getRow(1).font = { bold: true };
     const buffer = await workbook.xlsx.writeBuffer();
     return new Response(Buffer.from(buffer), {

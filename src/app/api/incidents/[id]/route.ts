@@ -1,4 +1,4 @@
-/** GET/PATCH incident. TRANSITIONS map in this file is the status machine — edit that to allow new flows. */
+/** GET/PATCH incident. Closed is only allowed for qa.manage. Developers may update open statuses. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import {
@@ -9,12 +9,12 @@ import {
   requireApiPermission,
   requireApiUser,
 } from "@/lib/http";
-import { assertFacilityAccess } from "@/lib/permissions";
+import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { incidentPatchSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
-import { INCIDENT_TRANSITIONS } from "@/lib/incident-status";
-import { incidentLabel } from "@/lib/utils";
+import { INCIDENT_STATUSES, OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 import type { IncidentStatus } from "@/lib/db-types";
 
 export async function GET(
@@ -31,6 +31,7 @@ export async function GET(
         reporter: true,
         assignee: true,
         history: { orderBy: { changedAt: "asc" } },
+        comments: { include: { author: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
         actions: true,
         qaRecords: true,
         attachments: { where: { deletedAt: null } },
@@ -50,7 +51,9 @@ export async function PATCH(
 ) {
   try {
     const user = await requireApiUser();
-    requireApiPermission(user, "incidents.manage");
+    if (!hasPermission(user.role, "incidents.create") && !hasPermission(user.role, "incidents.manage")) {
+      throw new HttpError(403, "Forbidden");
+    }
     const { id } = await context.params;
     const previous = await prisma.incident.findUnique({ where: { id } });
     if (!previous) return json({ error: "Not found" }, 404);
@@ -59,35 +62,46 @@ export async function PATCH(
     assertUnchanged(previous.updatedAt, body.updatedAt);
 
     if (body.status && body.status !== previous.status) {
-      const current = previous.status as IncidentStatus;
-      if (!INCIDENT_TRANSITIONS[current].includes(body.status)) {
-        throw new HttpError(400, "Invalid status transition");
+      if (!INCIDENT_STATUSES.includes(body.status as IncidentStatus)) {
+        throw new HttpError(400, "Invalid status");
+      }
+      if (body.status === "CLOSED" && !hasPermission(user.role, "qa.manage")) {
+        throw new HttpError(403, "Only PM/QA can close an incident");
       }
     }
     if (previous.priority === "CRITICAL" && body.status === "CLOSED") {
       assertUnchanged(previous.updatedAt, body.updatedAt ?? previous.updatedAt.toISOString());
     }
 
+    const fields = body.description !== undefined ? incidentRecordFields({ description: body.description }) : {};
     const meta = requestMeta(request);
     const incident = await prisma.$transaction(async (tx) => {
       const next = await tx.incident.update({
         where: { id },
         data: {
-          priority: body.priority,
+          ...fields,
+          priority: body.priority || undefined,
           assigneeId: body.assigneeId,
           status: body.status,
           dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+          reportedAt: body.reportedAt ? new Date(body.reportedAt) : undefined,
           resolutionInfo: body.resolutionInfo,
-          resolvedAt: body.status === "RESOLVED" ? new Date() : previous.resolvedAt,
-          closedAt: body.status === "CLOSED" ? new Date() : previous.closedAt,
+          closedAt:
+            body.status === "CLOSED"
+              ? new Date()
+              : body.status && (OPEN_INCIDENT_STATUSES as readonly string[]).includes(body.status)
+                ? null
+                : previous.closedAt,
+          resolvedAt:
+            body.status === "CLOSED"
+              ? new Date()
+              : body.status && (OPEN_INCIDENT_STATUSES as readonly string[]).includes(body.status)
+                ? null
+                : previous.resolvedAt,
         },
       });
-      const fields: Array<keyof typeof previous> = [
-        "status",
-        "assigneeId",
-        "priority",
-      ];
-      for (const field of fields) {
+      const tracked: Array<keyof typeof previous> = ["status", "assigneeId", "priority"];
+      for (const field of tracked) {
         const oldValue = String(previous[field] ?? "");
         const newValue = String(next[field] ?? "");
         if (oldValue !== newValue) {
@@ -101,6 +115,15 @@ export async function PATCH(
             },
           });
         }
+      }
+      if (body.comment?.trim()) {
+        await tx.incidentComment.create({
+          data: {
+            incidentId: id,
+            authorId: user.id,
+            body: body.comment.trim(),
+          },
+        });
       }
       await logAudit(tx, {
         userId: user.id,
@@ -124,14 +147,9 @@ export async function PATCH(
       });
     }
     if (body.status && body.status !== previous.status) {
-      const recipients = [incident.assigneeId, incident.reporterId].filter(
-        Boolean,
-      ) as string[];
+      const recipients = [incident.assigneeId, incident.reporterId].filter(Boolean) as string[];
       await notifyUsers(recipients, {
-        type:
-          body.status === "REOPENED"
-            ? "INCIDENT_REOPENED"
-            : "INCIDENT_STATUS_CHANGED",
+        type: body.status === "REOPENED" ? "INCIDENT_REOPENED" : "INCIDENT_STATUS_CHANGED",
         message: `${incidentLabel(incident)} is now ${body.status.replaceAll("_", " ").toLowerCase()}`,
         relatedType: "Incident",
         relatedId: incident.id,
@@ -156,6 +174,7 @@ export async function DELETE(
     await assertFacilityAccess(user, previous.facilityId);
     const meta = requestMeta(request);
     await prisma.$transaction(async (tx) => {
+      await tx.incidentComment.deleteMany({ where: { incidentId: id } });
       await tx.incidentHistory.deleteMany({ where: { incidentId: id } });
       await tx.action.updateMany({ where: { incidentId: id }, data: { incidentId: null } });
       await tx.qARecord.updateMany({

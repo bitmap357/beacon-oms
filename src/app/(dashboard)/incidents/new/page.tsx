@@ -7,5 +7,5 @@ export default async function NewIncidentPage({
   searchParams: Promise<{ facilityId?: string }>;
 }) {
   const { facilityId } = await searchParams;
-  redirect(facilityId ? `/incidents?facilityId=${facilityId}` : "/incidents");
+  redirect(facilityId ? `/incidents?facilityId=${facilityId}&add=1` : "/incidents?add=1");
 }

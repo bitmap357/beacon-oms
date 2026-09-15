@@ -28,7 +28,7 @@ export default async function QAPage({
     prisma.facility.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
     prisma.incident.findMany({
       where: { facilityId: { in: ids } },
-      select: { id: true, facilityId: true, createdAt: true },
+      select: { id: true, facilityId: true, createdAt: true, reportedAt: true, description: true },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -40,6 +40,7 @@ export default async function QAPage({
       <PageHeader
         title="QA"
         description="Verification of incident resolutions and deployments."
+        illustration="/brand/illustrations/page-qa.png"
         actions={<ScopeFilter />}
       />
       <Card className="mb-6 p-5">
@@ -50,7 +51,10 @@ export default async function QAPage({
         />
       </Card>
       {records.length === 0 ? (
-        <IllustratedEmpty title="No QA records yet. Record a verification above." />
+        <IllustratedEmpty
+          title="No QA records yet. Record a verification above."
+          image="/brand/illustrations/page-qa.png"
+        />
       ) : (
         <Card>
           <Table>

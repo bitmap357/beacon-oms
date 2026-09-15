@@ -15,6 +15,9 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/components/forms";
 import { DeleteButton } from "@/components/record-actions";
+import { PeoplePicker } from "@/components/people-picker";
+import { AttachmentPanel } from "@/components/attachment-panel";
+import { REPORT_SECTIONS, labelFor } from "@/lib/reportTemplates";
 import { toast } from "sonner";
 
 export type CalendarEvent = {
@@ -27,6 +30,10 @@ export type CalendarEvent = {
   end?: string | null;
   href: string;
   by: string;
+  activityType?: string;
+  reportId?: string | null;
+  members?: string[];
+  attachments?: Array<{ id: string; fileName: string; fileSizeBytes: number }>;
 };
 
 const KIND_STYLE: Record<CalendarEvent["kind"], string> = {
@@ -101,11 +108,13 @@ function eventHeight(event: CalendarEvent) {
 function WeekGrid({
   weekStart,
   byDay,
+  focusDay,
   onPickDay,
   onPickEvent,
 }: {
   weekStart: Date;
   byDay: Map<string, CalendarEvent[]>;
+  focusDay?: string;
   onPickDay: (day: string) => void;
   onPickEvent: (event: CalendarEvent) => void;
 }) {
@@ -120,18 +129,23 @@ function WeekGrid({
         {days.map((day) => {
           const key = isoDate(day);
           const isToday = key === today;
+          const isFocus = key === focusDay;
           return (
             <button
               type="button"
               key={key}
               onClick={() => onPickDay(key)}
-              className="border-l border-hairline px-2 py-3 text-left hover:bg-surface"
+              className={cn(
+                "border-l border-hairline px-2 py-3 text-left hover:bg-surface",
+                isFocus && "ring-2 ring-inset ring-gold",
+              )}
             >
               <p className="text-[12px] text-slate">{WEEKDAYS[day.getDay()]}</p>
               <span
                 className={cn(
                   "mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full font-heading text-lg",
                   isToday && "bg-brand text-white",
+                  isFocus && !isToday && "bg-gold/30",
                 )}
               >
                 {day.getDate()}
@@ -242,6 +256,7 @@ export function CalendarBoard({
   users,
   currentUserId,
   focusDay,
+  canWriteReport = false,
 }: {
   year: number;
   month: number;
@@ -251,10 +266,14 @@ export function CalendarBoard({
   users: Array<{ id: string; name: string }>;
   currentUserId: string;
   focusDay?: string;
+  canWriteReport?: boolean;
 }) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [attachReport, setAttachReport] = useState(false);
+  const [visitType, setVisitType] = useState("SITE_VISIT");
+  const [responsibleUserId, setResponsibleUserId] = useState(currentUserId);
   const days = useMemo(() => monthMatrix(year, month), [year, month]);
   const weekStart = useMemo(() => {
     const source = focusDay
@@ -275,39 +294,89 @@ export function CalendarBoard({
   function monthQuery(date: Date, nextView = view, day?: string) {
     const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     const params = new URLSearchParams({ month: monthValue, view: nextView });
-    if (nextView === "week") params.set("day", day || isoDate(date));
+    params.set("day", day || isoDate(date));
     return `/calendar?${params.toString()}`;
   }
 
   function go(offset: number) {
     if (view === "week") {
-      const next = addDays(weekStart, offset * 7);
+      const source = focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart;
+      const next = addDays(source, offset * 7);
       router.push(monthQuery(next, "week", isoDate(next)));
       return;
     }
-    router.push(monthQuery(new Date(year, month + offset, 1), "month"));
+    const dayNum = focusDay ? Number(focusDay.slice(8, 10)) : 1;
+    const next = new Date(year, month + offset, dayNum);
+    router.push(monthQuery(next, "month", isoDate(next)));
+  }
+
+  function filledReportContent(formData: FormData, keys: readonly string[]) {
+    const content: Record<string, string> = {};
+    for (const key of keys) {
+      const value = String(formData.get(`content.${key}`) || "").trim();
+      if (value) content[key] = value;
+    }
+    return content;
   }
 
   async function logVisit(formData: FormData) {
     const date = String(formData.get("date"));
     const start = String(formData.get("startTime") || "09:00");
     const end = String(formData.get("endTime") || "12:00");
+    const type = String(formData.get("type") || "SITE_VISIT");
+    const responsible = String(formData.get("responsibleUserId") || "");
+    const participantIds = formData
+      .getAll("participantIds")
+      .map(String)
+      .filter((id) => id && id !== responsible);
     try {
-      await apiRequest("/api/activities", {
+      const created = await apiRequest<{ activity: { id: string } }>("/api/activities", {
         facilityId: formData.get("facilityId"),
-        type: "SITE_VISIT",
+        type,
         date,
         startTime: `${date}T${start}:00`,
         endTime: `${date}T${end}:00`,
-        responsibleUserId: formData.get("responsibleUserId"),
-        description: formData.get("description"),
+        responsibleUserId: responsible,
+        participantIds,
+        description: formData.get("description") || "",
         findings: formData.get("findings") || null,
       });
+      if (canWriteReport && formData.get("attachReport") === "on") {
+        const reportType = type === "TRAINING" ? "TRAINING" : "SITE_VISIT";
+        await apiRequest("/api/reports", {
+          type: reportType,
+          facilityId: formData.get("facilityId"),
+          activityId: created.activity.id,
+          date,
+          content: filledReportContent(formData, REPORT_SECTIONS[reportType]),
+        });
+      }
       toast.success("Visit logged");
       setSelectedDate(null);
-      router.refresh();
+      setAttachReport(false);
+      const logged = new Date(`${date}T00:00:00`);
+      router.push(monthQuery(logged, view, date));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not log visit");
+    }
+  }
+
+  async function attachReportToVisit(formData: FormData) {
+    if (!selectedEvent) return;
+    const reportType = selectedEvent.activityType === "TRAINING" ? "TRAINING" : "SITE_VISIT";
+    try {
+      await apiRequest("/api/reports", {
+        type: reportType,
+        facilityId: selectedEvent.facilityId,
+        activityId: selectedEvent.id,
+        date: isoDate(new Date(selectedEvent.at)),
+        content: filledReportContent(formData, REPORT_SECTIONS[reportType]),
+      });
+      toast.success("Report attached");
+      setSelectedEvent(null);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not attach report");
     }
   }
 
@@ -336,22 +405,54 @@ export function CalendarBoard({
         >
           Today
         </Button>
+        <label className="flex items-center gap-2 text-[14px] text-slate">
+          Go to
+          <Input
+            type="date"
+            className="w-auto"
+            value={focusDay || isoDate(new Date(year, month, 1))}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (!value) return;
+              const next = new Date(`${value}T00:00:00`);
+              router.push(monthQuery(next, view, value));
+            }}
+            aria-label="Jump to a date"
+          />
+        </label>
         <div className="ml-auto flex gap-2">
           <Button
             variant={view === "month" ? "default" : "secondary"}
-            onClick={() => router.push(monthQuery(new Date(year, month, 1), "month"))}
+            onClick={() =>
+              router.push(
+                monthQuery(
+                  focusDay ? new Date(`${focusDay}T00:00:00`) : new Date(year, month, 1),
+                  "month",
+                  focusDay,
+                ),
+              )
+            }
           >
             Month
           </Button>
           <Button
             variant={view === "week" ? "default" : "secondary"}
             onClick={() =>
-              router.push(monthQuery(weekStart, "week", isoDate(weekStart)))
+              router.push(
+                monthQuery(
+                  focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart,
+                  "week",
+                  focusDay || isoDate(weekStart),
+                ),
+              )
             }
           >
             Week
           </Button>
-          <Button onClick={() => setSelectedDate(isoDate(new Date()))}>Log visit</Button>
+          <Button onClick={() => setSelectedDate(focusDay || isoDate(new Date()))}>
+            <Plus className="h-4 w-4" />
+            Log visit
+          </Button>
         </div>
       </div>
       <ul className="mb-3 flex flex-wrap gap-4 text-[12px] text-slate">
@@ -380,6 +481,7 @@ export function CalendarBoard({
               const key = isoDate(day);
               const inMonth = day.getMonth() === month;
               const isToday = key === isoDate(new Date());
+              const isFocus = key === focusDay;
               const dayEvents = byDay.get(key) || [];
               return (
                 <button
@@ -390,6 +492,7 @@ export function CalendarBoard({
                     "min-h-28 border-b border-r border-hairline p-1.5 text-left align-top hover:bg-surface",
                     !inMonth && "bg-surface/60 text-slate",
                     isToday && "bg-brand/5",
+                    isFocus && "ring-2 ring-inset ring-gold",
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-1">
@@ -397,6 +500,7 @@ export function CalendarBoard({
                       className={cn(
                         "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px]",
                         isToday && "bg-brand text-white",
+                        isFocus && !isToday && "bg-gold/30",
                       )}
                     >
                       {day.getDate()}
@@ -453,6 +557,7 @@ export function CalendarBoard({
         <WeekGrid
           weekStart={weekStart}
           byDay={byDay}
+          focusDay={focusDay}
           onPickDay={setSelectedDate}
           onPickEvent={setSelectedEvent}
         />
@@ -461,12 +566,32 @@ export function CalendarBoard({
       {selectedDate ? (
         <div className="fixed inset-0 z-40 flex items-end justify-end bg-black/30 p-4 sm:items-center">
           <div className="w-full max-w-md rounded-[16px] border border-hairline bg-surface-raised p-5 shadow-xl">
-            <h3 className="font-heading mb-1 text-[18px]">Log a site visit</h3>
+            <h3 className="font-heading mb-1 text-[18px]">Log a visit</h3>
             <p className="mb-4 text-[13px] text-slate">
-              Visits appear on this calendar for the facility team. Pick a day, times, and who went.
+              Site visit, demo/meeting, or training. Future dates are fine. A report is optional.
             </p>
-            <form action={logVisit} className="grid gap-3">
-              <input type="hidden" name="date" value={selectedDate} />
+            <form action={logVisit} className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
+              <div>
+                <Label>Date</Label>
+                <Input
+                  name="date"
+                  type="date"
+                  required
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                />
+                <p className="mt-1 text-[12px] text-slate">
+                  Pick a past day to backfill, or a future day to plan ahead.
+                </p>
+              </div>
+              <div>
+                <Label>Type</Label>
+                <Select name="type" required value={visitType} onChange={(event) => setVisitType(event.target.value)}>
+                  <option value="SITE_VISIT">Site visit</option>
+                  <option value="DEMONSTRATION">Demo / meeting</option>
+                  <option value="TRAINING">Training</option>
+                </Select>
+              </div>
               <div>
                 <Label>Facility</Label>
                 <Select name="facilityId" required>
@@ -489,7 +614,12 @@ export function CalendarBoard({
               </div>
               <div>
                 <Label>Responsible</Label>
-                <Select name="responsibleUserId" required defaultValue={currentUserId}>
+                <Select
+                  name="responsibleUserId"
+                  required
+                  value={responsibleUserId}
+                  onChange={(event) => setResponsibleUserId(event.target.value)}
+                >
                   {users.map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.name}
@@ -498,19 +628,44 @@ export function CalendarBoard({
                 </Select>
               </div>
               <div>
-                <Label>What was covered</Label>
-                <Textarea name="description" required placeholder="Modules reviewed, people met, issues found..." />
+                <p className="mb-1 text-[14px] text-slate">Members (optional)</p>
+                <PeoplePicker users={users} excludeId={responsibleUserId} />
               </div>
               <div>
-                <Label>Findings (optional)</Label>
-                <Textarea name="findings" />
+                <Label>Notes (optional)</Label>
+                <Textarea name="description" placeholder="What will be covered, or leave blank for a future visit" />
               </div>
-              <p className="text-[12px] text-slate">Visit date: {selectedDate}</p>
+              <details className="rounded-xl border border-hairline bg-surface px-3 py-2">
+                <summary className="cursor-pointer text-[14px] text-slate">Findings (optional)</summary>
+                <Textarea name="findings" className="mt-2" />
+              </details>
+              {canWriteReport ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="attachReport"
+                    checked={attachReport}
+                    onChange={(event) => setAttachReport(event.target.checked)}
+                  />
+                  Attach a report now
+                </label>
+              ) : null}
+              {attachReport
+                ? (visitType === "TRAINING" ? REPORT_SECTIONS.TRAINING : REPORT_SECTIONS.SITE_VISIT).map((key) => (
+                    <div key={key}>
+                      <Label>{labelFor(key)} (optional)</Label>
+                      <Textarea name={`content.${key}`} />
+                    </div>
+                  ))
+                : null}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={() => setSelectedDate(null)}>
                   Cancel
                 </Button>
-                <Button>Save visit</Button>
+                <Button>
+                  <Plus className="h-4 w-4" />
+                  Save visit
+                </Button>
               </div>
             </form>
           </div>
@@ -519,14 +674,46 @@ export function CalendarBoard({
 
       {selectedEvent ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-[16px] border border-hairline bg-surface-raised p-5">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[16px] border border-hairline bg-surface-raised p-5">
             <p className="text-[12px] uppercase tracking-wide text-slate">{selectedEvent.kind}</p>
             <h3 className="font-heading mt-1 text-[18px]">{selectedEvent.title}</h3>
             <p className="mt-2 text-sm">
               {selectedEvent.facility}
               {timeLabel(selectedEvent.at) ? ` · ${timeLabel(selectedEvent.at)}` : ""}
             </p>
-            <p className="text-[13px] text-slate">{selectedEvent.by}</p>
+            <p className="text-[13px] text-slate">Responsible: {selectedEvent.by}</p>
+            {selectedEvent.members?.length ? (
+              <p className="text-[13px] text-slate">Members: {selectedEvent.members.join(", ")}</p>
+            ) : null}
+            {selectedEvent.kind === "visit" && selectedEvent.reportId ? (
+              <Link className="mt-2 inline-block text-sm text-brand" href={`/reports/${selectedEvent.reportId}`}>
+                Open attached report
+              </Link>
+            ) : null}
+            {selectedEvent.kind === "visit" || selectedEvent.kind === "activity" ? (
+              <div className="mt-4">
+                <AttachmentPanel
+                  relatedType="ACTIVITY"
+                  relatedId={selectedEvent.id}
+                  attachments={selectedEvent.attachments || []}
+                />
+              </div>
+            ) : null}
+            {canWriteReport && selectedEvent.kind === "visit" && !selectedEvent.reportId ? (
+              <form action={attachReportToVisit} className="mt-4 grid max-h-56 gap-2 overflow-y-auto">
+                <p className="text-sm">Attach a report — fill only the fields you need</p>
+                {(selectedEvent.activityType === "TRAINING"
+                  ? REPORT_SECTIONS.TRAINING
+                  : REPORT_SECTIONS.SITE_VISIT
+                ).map((key) => (
+                  <div key={key}>
+                    <Label>{labelFor(key)} (optional)</Label>
+                    <Textarea name={`content.${key}`} />
+                  </div>
+                ))}
+                <Button>Save report</Button>
+              </form>
+            ) : null}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               {selectedEvent.kind === "visit" || selectedEvent.kind === "activity" ? (
                 <DeleteButton path={`/api/activities/${selectedEvent.id}`} />
@@ -549,8 +736,10 @@ export function CalendarBoard({
                 <Link
                   href={
                     selectedEvent.kind === "action"
-                      ? `/actions?facilityId=${encodeURIComponent(selectedEvent.facilityId)}`
-                      : `/facilities/${encodeURIComponent(selectedEvent.facilityId)}`
+                      ? `/actions?facilityId=${selectedEvent.facilityId}`
+                      : selectedEvent.reportId
+                        ? `/reports/${selectedEvent.reportId}`
+                        : `/facilities/${selectedEvent.facilityId}`
                   }
                 >
                   Open

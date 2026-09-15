@@ -7,13 +7,13 @@ export function Table({
 }: React.HTMLAttributes<HTMLTableElement>) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn("w-full text-left text-sm", className)} {...props} />
+      <table className={cn("w-full text-left text-[15px]", className)} {...props} />
     </div>
   );
 }
 
 export function THead(props: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead {...props} />;
+  return <thead className="bg-surface/70" {...props} />;
 }
 
 export function TBody(props: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -34,7 +34,7 @@ export function TH({
   return (
     <th
       className={cn(
-        "px-4 py-2 text-[12px] font-medium text-slate",
+        "px-4 py-3 text-[12px] font-medium uppercase tracking-wide text-slate",
         className,
       )}
       {...props}
@@ -46,5 +46,5 @@ export function TD({
   className,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-4 py-3 text-ink", className)} {...props} />;
+  return <td className={cn("px-4 py-3.5 text-ink", className)} {...props} />;
 }

@@ -18,3 +18,10 @@ export async function PATCH(
     return errorResponse(error);
   }
 }
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  return PATCH(request, context);
+}

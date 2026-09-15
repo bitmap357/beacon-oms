@@ -1,4 +1,5 @@
 /** GET signed URL or DELETE (soft) an attachment. */
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { errorResponse, json, requireApiUser } from "@/lib/http";
@@ -39,7 +40,7 @@ async function facilityIdFor(attachment: {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -51,7 +52,10 @@ export async function GET(
     if (!facilityId) return json({ error: "Not found" }, 404);
     await assertFacilityAccess(user, facilityId);
     const url = await signedGetUrl(attachment.s3Key);
-    return json({ url, fileName: attachment.fileName });
+    if (new URL(request.url).searchParams.get("json") === "1") {
+      return json({ url, fileName: attachment.fileName });
+    }
+    return NextResponse.redirect(url);
   } catch (error) {
     return errorResponse(error);
   }

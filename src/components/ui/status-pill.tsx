@@ -21,7 +21,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-[20px] px-[10px] py-[3px] text-[12px] font-medium",
+        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-medium",
         style ?? "bg-muted text-slate",
         className,
       )}
@@ -47,7 +47,7 @@ export function TonePill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-[20px] px-[10px] py-[3px] text-[12px] font-medium",
+        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-medium",
         styles[tone],
       )}
     >

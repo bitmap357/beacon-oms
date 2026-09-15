@@ -5,21 +5,21 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-[15px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         default: "bg-brand text-white hover:bg-brand-deep",
         secondary:
-          "border border-hairline bg-transparent text-ink hover:bg-surface",
+          "border border-hairline bg-surface-raised text-ink hover:bg-surface",
         ghost: "text-ink hover:bg-surface",
         danger: "bg-[#791F1F] text-white hover:bg-[#5c1717]",
       },
       size: {
-        default: "h-9 px-4",
-        sm: "h-8 px-3 text-xs",
-        lg: "h-10 px-5",
-        icon: "h-9 w-9",
+        default: "h-10 px-4",
+        sm: "h-9 px-3 text-sm",
+        lg: "h-11 px-5",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {

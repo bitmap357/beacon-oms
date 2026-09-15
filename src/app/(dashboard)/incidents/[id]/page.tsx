@@ -10,6 +10,9 @@ import { TonePill } from "@/components/ui/status-pill";
 import { SimpleForm } from "@/components/forms";
 import { formatDate, formatDateTime, incidentLabel, labelize } from "@/lib/utils";
 import { DeleteButton } from "@/components/record-actions";
+import { IncidentCommentForm } from "@/components/incident-comment-form";
+import { AttachmentPanel } from "@/components/attachment-panel";
+import { incidentStatusOptions } from "@/lib/incident-status";
 
 export default async function IncidentDetailPage({
   params,
@@ -26,13 +29,17 @@ export default async function IncidentDetailPage({
       reporter: true,
       assignee: true,
       history: { orderBy: { changedAt: "asc" } },
+      comments: { include: { author: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
       actions: { include: { owner: true } },
       qaRecords: true,
+      attachments: { where: { deletedAt: null } },
     },
   });
   if (!incident) notFound();
   await assertFacilityAccess(user, incident.facilityId);
   const canManage = hasPermission(user.role, "incidents.manage");
+  const canUpdate = hasPermission(user.role, "incidents.create") || canManage;
+  const canClose = hasPermission(user.role, "qa.manage");
   const users = await prisma.user.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
@@ -43,6 +50,7 @@ export default async function IncidentDetailPage({
       <PageHeader
         title={incidentLabel(incident)}
         description={`${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}`}
+        illustration="/brand/illustrations/page-incidents.png"
         actions={
           <div className="flex items-center gap-2">
             <TonePill tone={incident.priority === "CRITICAL" ? "danger" : "warn"}>
@@ -54,15 +62,23 @@ export default async function IncidentDetailPage({
       />
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="p-5 xl:col-span-2">
-          <p className="text-[13px] text-slate">
+          <p className="text-sm whitespace-pre-wrap">{incident.description || "Incident"}</p>
+          <p className="mt-4 text-[13px] text-slate">
             <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
               {incident.facility.name}
             </Link>
-            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDateTime(incident.createdAt)} · status {labelize(incident.status)}
+            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} · status {labelize(incident.status)}
           </p>
           {incident.resolutionInfo ? (
             <p className="mt-3 text-sm">Resolution: {incident.resolutionInfo}</p>
           ) : null}
+          <div className="mt-6">
+            <AttachmentPanel
+              relatedType="INCIDENT"
+              relatedId={incident.id}
+              attachments={incident.attachments}
+            />
+          </div>
           <h2 className="font-heading mt-6 mb-2 text-[18px]">Required actions</h2>
           {incident.actions.length === 0 ? (
             <p className="mb-3 text-sm text-slate">This incident has no follow-up actions yet.</p>
@@ -109,6 +125,22 @@ export default async function IncidentDetailPage({
               { name: "description", label: "Description", textarea: true },
             ]}
           />
+          <h2 className="font-heading mt-6 mb-2 text-[18px]">Comments</h2>
+          {incident.comments.length === 0 ? (
+            <p className="mb-3 text-sm text-slate">No comments yet. Add a follow-up or note if you are waiting on a response.</p>
+          ) : (
+            <ul className="mb-4 space-y-3 text-sm">
+              {incident.comments.map((row) => (
+                <li key={row.id} className="rounded-[12px] border border-hairline p-3">
+                  <p className="text-[12px] text-slate">
+                    {row.author.name} · {formatDateTime(row.createdAt)}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap">{row.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <IncidentCommentForm incidentId={incident.id} />
           <h2 className="font-heading mt-6 mb-2 text-[18px]">History</h2>
           <ol className="space-y-2 text-sm">
             {incident.history.map((row) => (
@@ -123,6 +155,7 @@ export default async function IncidentDetailPage({
         </Card>
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Update</h2>
+          {canUpdate ? (
           <SimpleForm
             action={`/api/incidents/${id}`}
             method="PATCH"
@@ -131,21 +164,30 @@ export default async function IncidentDetailPage({
               {
                 name: "status",
                 label: "Status",
-                options: [
-                  "NEW",
-                  "ASSIGNED",
-                  "IN_PROGRESS",
-                  "AWAITING_QA",
-                  "REOPENED",
-                  "RESOLVED",
-                  "CLOSED",
-                ].map((value) => ({ value, label: labelize(value) })),
+                options: incidentStatusOptions(canClose).map((value) => ({
+                  value,
+                  label: labelize(value),
+                })),
                 defaultValue: incident.status,
               },
               {
+                name: "description",
+                label: "Incident",
+                textarea: true,
+                required: true,
+                defaultValue: incident.description,
+              },
+              {
+                name: "reportedAt",
+                label: "Date reported",
+                type: "date",
+                required: true,
+                defaultValue: incident.reportedAt.toISOString().slice(0, 10),
+              },
+              {
                 name: "assigneeId",
-                label: "Assignee",
-                options: users.map((row) => ({ value: row.id, label: row.name })),
+                label: "Assignee (optional)",
+                options: [{ value: "", label: "Unassigned" }, ...users.map((row) => ({ value: row.id, label: row.name }))],
                 defaultValue: incident.assigneeId || "",
               },
               {
@@ -157,11 +199,14 @@ export default async function IncidentDetailPage({
               {
                 name: "updatedAt",
                 label: "Current timestamp",
-                options: [{ value: incident.updatedAt.toISOString(), label: "Use latest" }],
+                type: "hidden",
                 defaultValue: incident.updatedAt.toISOString(),
               },
             ]}
           />
+          ) : (
+            <p className="text-sm text-slate">You can add comments. Status changes need a create or manage permission.</p>
+          )}
           <p className="mt-4 text-[12px] text-slate">
             High-risk closes use optimistic locking. Refresh if someone else saved first.
           </p>

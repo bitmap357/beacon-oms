@@ -101,17 +101,18 @@ export const activitySchema = z.object({
   endTime: z.string().optional().nullable(),
   responsibleUserId: z.string().min(1),
   participantIds: z.array(z.string()).optional(),
-  description: z.string().trim().min(4),
+  description: z.string().trim().optional().nullable(),
   findings: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
 export const incidentSchema = z.object({
-  title: z.string().trim().max(200).optional().nullable(),
   facilityId: z.string().min(1),
   branchId: z.string().optional().nullable(),
-  description: z.string().trim().optional().nullable(),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  description: z.string().trim().min(1, "Incident is required"),
+  status: z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]),
+  reportedAt: z.string().min(1),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().nullable(),
   assigneeId: z.string().optional().nullable(),
   relatedActivityId: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
@@ -119,18 +120,13 @@ export const incidentSchema = z.object({
 });
 
 export const incidentPatchSchema = incidentSchema.partial().extend({
-  status: z
-    .enum([
-      "NEW",
-      "ASSIGNED",
-      "IN_PROGRESS",
-      "AWAITING_QA",
-      "REOPENED",
-      "RESOLVED",
-      "CLOSED",
-    ])
-    .optional(),
+  status: z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]).optional(),
   resolutionInfo: z.string().optional().nullable(),
+  comment: z.string().trim().optional().nullable(),
+});
+
+export const incidentCommentSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
 });
 
 export const actionSchema = z.object({

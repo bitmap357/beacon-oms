@@ -8,6 +8,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { apiRequest } from "@/components/forms";
 import { incidentLabel, labelize } from "@/lib/utils";
 import { toast } from "sonner";
+import { ShieldCheck } from "lucide-react";
 
 export function QaForm({
   facilities,
@@ -16,7 +17,7 @@ export function QaForm({
   defaultIncidentId,
 }: {
   facilities: { id: string; name: string }[];
-  incidents: { id: string; facilityId: string; createdAt: Date | string }[];
+  incidents: { id: string; facilityId: string; createdAt: Date | string; reportedAt?: Date | string; description?: string | null }[];
   defaultFacilityId?: string;
   defaultIncidentId?: string;
 }) {
@@ -82,7 +83,12 @@ export function QaForm({
       </div>
       <div>
         <Label>QA date</Label>
-        <Input name="qaDate" type="date" required />
+        <Input
+          name="qaDate"
+          type="date"
+          required
+          defaultValue={new Date().toISOString().slice(0, 10)}
+        />
       </div>
       <div>
         <Label>Result</Label>
@@ -99,7 +105,10 @@ export function QaForm({
         <Textarea name="findings" />
       </div>
       <div className="md:col-span-2">
-        <Button>Record QA</Button>
+        <Button>
+          <ShieldCheck className="h-4 w-4" />
+          Record QA
+        </Button>
       </div>
     </form>
   );

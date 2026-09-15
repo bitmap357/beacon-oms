@@ -51,6 +51,7 @@ model User {
   auditLogs             AuditLog[]
   attachmentsUploaded   Attachment[]           @relation("AttachmentUploader")
   activityParticipants  ActivityParticipant[]
+  incidentComments      IncidentComment[]
 }
 
 // Client org → regions → facilities → optional branches. Incidents hang off facility + branch.
@@ -157,7 +158,7 @@ model Activity {
   endTime           DateTime?
   responsibleUserId String
   responsibleUser   User     @relation("ActivityResponsible", fields: [responsibleUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  description       String   @db.NVarChar(Max)
+  description       String   @default("") @db.NVarChar(Max)
   findings          String?  @db.NVarChar(Max)
   notes             String?  @db.NVarChar(Max)
   source            String   @default("NATIVE")
@@ -207,11 +208,13 @@ model Incident {
   resolutionInfo    String?         @db.NVarChar(Max)
   resolvedAt        DateTime?
   closedAt          DateTime?
+  reportedAt        DateTime        @default(now())
   source            String          @default("NATIVE")
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   history     IncidentHistory[]
+  comments    IncidentComment[]
   actions     Action[]
   reports     Report[]
   qaRecords   QARecord[]
@@ -233,6 +236,19 @@ model IncidentHistory {
   oldValue     String?  @db.NVarChar(Max)
   newValue     String?  @db.NVarChar(Max)
   changedAt    DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+// Free-text follow-ups on an incident (waiting on a response, notes, etc.).
+model IncidentComment {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  body       String   @db.NVarChar(Max)
+  createdAt  DateTime @default(now())
 
   @@index([incidentId])
 }

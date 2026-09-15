@@ -1,4 +1,4 @@
-/** GET/POST QA records. A pass can move the linked incident to RESOLVED. */
+/** GET/POST QA records. A pass can close the linked incident. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
@@ -54,23 +54,30 @@ export async function POST(request: Request) {
         },
       });
       if (body.relatedIncidentId) {
-        const incidentStatus =
-          body.result === "PASSED" || body.result === "PASSED_WITH_ISSUES"
-            ? "RESOLVED"
-            : "REOPENED";
-        const incident = await tx.incident.update({
-          where: { id: body.relatedIncidentId },
-          data: { status: incidentStatus },
-        });
-        await tx.incidentHistory.create({
-          data: {
-            incidentId: incident.id,
-            changedById: user.id,
-            fieldChanged: "status",
-            oldValue: "AWAITING_QA",
-            newValue: incidentStatus,
-          },
-        });
+        const previous = await tx.incident.findUnique({ where: { id: body.relatedIncidentId } });
+        const passed = body.result === "PASSED" || body.result === "PASSED_WITH_ISSUES";
+        let incidentStatus: string | null = null;
+        if (passed) incidentStatus = "CLOSED";
+        else if (previous?.status === "CLOSED") incidentStatus = "REOPENED";
+        if (incidentStatus) {
+          const incident = await tx.incident.update({
+            where: { id: body.relatedIncidentId },
+            data: {
+              status: incidentStatus,
+              closedAt: incidentStatus === "CLOSED" ? new Date() : null,
+              resolvedAt: incidentStatus === "CLOSED" ? new Date() : null,
+            },
+          });
+          await tx.incidentHistory.create({
+            data: {
+              incidentId: incident.id,
+              changedById: user.id,
+              fieldChanged: "status",
+              oldValue: previous?.status || null,
+              newValue: incidentStatus,
+            },
+          });
+        }
       }
       await logAudit(tx, {
         userId: user.id,

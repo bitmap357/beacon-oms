@@ -42,6 +42,7 @@ export default async function ReportDetailPage({
       <PageHeader
         title={`${labelize(report.type)} report`}
         description={`${report.facility.clientOrganization.name} · ${report.facility.name}`}
+        illustration="/brand/illustrations/page-reports.png"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="secondary">

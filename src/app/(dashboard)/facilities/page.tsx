@@ -50,6 +50,7 @@ export default async function FacilitiesPage({
       <PageHeader
         title="Facilities"
         description="Each facility belongs to an organization. Some facilities have branches that incidents can be scoped to."
+        illustration="/brand/illustrations/page-facilities.png"
         actions={<ScopeFilter />}
       />
       {hasPermission(user.role, "facilities.manage") ? (
@@ -61,7 +62,7 @@ export default async function FacilitiesPage({
       {facilities.length === 0 ? (
         <IllustratedEmpty
           title="No facilities in this view."
-          image="/brand/illustrations/empty-map.png"
+          image="/brand/illustrations/page-facilities.png"
         />
       ) : (
         <Card>

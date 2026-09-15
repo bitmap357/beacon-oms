@@ -48,12 +48,21 @@ export async function PATCH(
         data: {
           type: body.type,
           date: body.date ? new Date(body.date) : undefined,
-          description: body.description,
-          findings: body.findings,
-          notes: body.notes,
+          description: body.description === undefined ? undefined : body.description?.trim() || "",
+          findings: body.findings ?? undefined,
+          notes: body.notes ?? undefined,
           responsibleUserId: body.responsibleUserId,
         },
       });
+      if (body.participantIds) {
+        const memberIds = body.participantIds.filter((userId) => userId !== next.responsibleUserId);
+        await tx.activityParticipant.deleteMany({ where: { activityId: id } });
+        if (memberIds.length) {
+          await tx.activityParticipant.createMany({
+            data: memberIds.map((userId) => ({ activityId: id, userId })),
+          });
+        }
+      }
       await logAudit(tx, {
         userId: user.id,
         action: "activity.updated",

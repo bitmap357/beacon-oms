@@ -11,12 +11,16 @@ import { PageHeader } from "@/components/ui/page";
 import { StatusPill, TonePill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
+import { ActivityForm } from "@/components/activity-form";
+import { HandoverSnapshot } from "@/components/handover-snapshot";
 import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from "@/lib/utils";
 import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
-import { DeleteButton } from "@/components/record-actions";
+import { DeleteButton, EditDeleteControls } from "@/components/record-actions";
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+import { Plus } from "lucide-react";
 
-const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
+const OPEN = OPEN_INCIDENT_STATUSES;
 
 export default async function FacilityDetailPage({
   params,
@@ -53,7 +57,10 @@ export default async function FacilityDetailPage({
     }),
     prisma.activity.findMany({
       where: { facilityId: id },
-      include: { responsibleUser: true },
+      include: {
+        responsibleUser: true,
+        participants: { include: { user: { select: { name: true } } } },
+      },
       orderBy: { date: "desc" },
     }),
     prisma.handover.findMany({
@@ -62,7 +69,7 @@ export default async function FacilityDetailPage({
       orderBy: { createdAt: "desc" },
     }),
     prisma.user.findMany({
-      where: { isActive: true, role: { in: ["PM_QA", "DEVELOPER"] } },
+      where: { isActive: true },
       orderBy: { name: "asc" },
     }),
     calculateVisitRecommendation(id),
@@ -82,6 +89,7 @@ export default async function FacilityDetailPage({
       <PageHeader
         title={facility.name}
         description={`${facility.clientOrganization.name}${facility.branches.length ? ` · ${facility.branches.length} branch${facility.branches.length === 1 ? "" : "es"}` : ""}`}
+        illustration="/brand/illustrations/page-facilities.png"
         actions={
           <div className="flex items-center gap-2">
             <StatusPill status={facility.status} />
@@ -93,7 +101,10 @@ export default async function FacilityDetailPage({
       />
       <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild>
-          <Link href={`/incidents/new?facilityId=${id}`}>Create incident</Link>
+          <Link href={`/incidents/new?facilityId=${id}`}>
+            <Plus className="h-4 w-4" />
+            Create incident
+          </Link>
         </Button>
         <Button asChild variant="secondary">
           <Link href={`/actions?facilityId=${id}`}>Create action</Link>
@@ -177,10 +188,12 @@ export default async function FacilityDetailPage({
                   name: "userId",
                   label: "Person",
                   required: true,
-                  options: users.map((row) => ({
-                    value: row.id,
-                    label: `${row.name} (${row.role})`,
-                  })),
+                  options: users
+                .filter((row) => row.role === "PM_QA" || row.role === "DEVELOPER")
+                .map((row) => ({
+                  value: row.id,
+                  label: `${row.name} (${row.role})`,
+                })),
                 },
                 {
                   name: "assignmentType",
@@ -206,11 +219,24 @@ export default async function FacilityDetailPage({
             This facility has no branches. Incidents apply to the site as a whole unless you add one.
           </p>
         ) : (
-          <ul className="mb-3 space-y-1 text-sm">
+          <ul className="mb-3 space-y-3 text-sm">
             {facility.branches.map((branch) => (
-              <li key={branch.id}>
-                {branch.name}
-                {branch.location ? <span className="text-slate"> · {branch.location}</span> : null}
+              <li key={branch.id} className="rounded-[12px] border border-hairline p-3">
+                <div>
+                  {branch.name}
+                  {branch.location ? <span className="text-slate"> · {branch.location}</span> : null}
+                </div>
+                {hasPermission(user.role, "facilities.manage") ? (
+                  <div className="mt-2">
+                    <EditDeleteControls
+                      path={`/api/facilities/${id}/branches/${branch.id}`}
+                      fields={[
+                        { name: "name", label: "Branch name", required: true, defaultValue: branch.name },
+                        { name: "location", label: "Location", defaultValue: branch.location || "" },
+                      ]}
+                    />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -229,38 +255,11 @@ export default async function FacilityDetailPage({
 
       <Card className="mt-4 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Record activity</h2>
-        <SimpleForm
-          action="/api/activities"
-          submitLabel="Record activity"
-          fields={[
-            { name: "facilityId", label: "Facility", options: [{ value: id, label: facility.name }] },
-            {
-              name: "type",
-              label: "Type",
-              required: true,
-              options: [
-                "SITE_VISIT",
-                "TRAINING",
-                "DEMONSTRATION",
-                "DEPLOYMENT",
-                "QA",
-                "MEETING",
-                "FOLLOW_UP",
-                "SUPPORT",
-                "INSTALLATION",
-                "SYSTEM_REVIEW",
-                "OTHER",
-              ].map((value) => ({ value, label: labelize(value) })),
-            },
-            { name: "date", label: "Date", type: "date", required: true },
-            {
-              name: "responsibleUserId",
-              label: "Responsible",
-              required: true,
-              options: users.map((row) => ({ value: row.id, label: row.name })),
-            },
-            { name: "description", label: "Description", textarea: true, required: true },
-          ]}
+        <ActivityForm
+          facilityId={id}
+          facilityName={facility.name}
+          users={users.map((row) => ({ id: row.id, name: row.name }))}
+          currentUserId={user.id}
         />
       </Card>
 
@@ -330,6 +329,9 @@ export default async function FacilityDetailPage({
               <p className="text-[12px] font-mono text-slate">{formatDateTime(row.date)}</p>
               <p className="text-sm">
                 {labelize(row.type)} · {row.responsibleUser.name}
+                {row.participants.length
+                  ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
+                  : ""}
               </p>
               <p className="text-[13px] text-slate">{row.description}</p>
             </li>
@@ -387,8 +389,11 @@ export default async function FacilityDetailPage({
           ) : null}
           <ul className="mt-4 space-y-2 text-sm">
             {handovers.map((row) => (
-              <li key={row.id}>
-                {formatDate(row.createdAt)} · {row.fromUser?.name || "—"} → {row.toUser?.name || "—"}
+              <li key={row.id} className="space-y-1">
+                <p>
+                  {formatDate(row.createdAt)} · {row.fromUser?.name || "—"} → {row.toUser?.name || "—"}
+                </p>
+                <HandoverSnapshot value={row.summarySnapshot} />
               </li>
             ))}
           </ul>

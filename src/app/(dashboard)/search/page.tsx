@@ -32,6 +32,8 @@ export default async function SearchPage({
             where: {
               facilityId: { in: ids },
               OR: [
+                { description: { contains: query } },
+                { title: { contains: query } },
                 { facility: { name: { contains: query } } },
                 { status: { contains: query } },
                 { priority: { contains: query } },
@@ -48,20 +50,31 @@ export default async function SearchPage({
             take: 8,
           }),
           reports: await prisma.report.findMany({
-            where: { facilityId: { in: ids } },
+            where: {
+              facilityId: { in: ids },
+              OR: [
+                { type: { contains: query } },
+                { status: { contains: query } },
+                { facility: { name: { contains: query } } },
+              ],
+            },
             take: 8,
           }),
         };
 
   return (
     <div>
-      <PageHeader title="Search" description="Facilities, people, incidents, activities, actions, and reports." />
+      <PageHeader
+        title="Search"
+        description="Facilities, people, incidents, activities, actions, and reports."
+        illustration="/brand/illustrations/page-search.png"
+      />
       <form className="mb-6">
         <input
           name="q"
           defaultValue={query}
           placeholder="Search"
-          className="h-9 w-full max-w-lg rounded-[10px] border border-hairline px-3"
+          className="h-11 w-full max-w-lg rounded-xl border border-hairline bg-surface-raised px-4 text-[15px] shadow-[inset_0_1px_2px_rgba(28,36,48,0.04)]"
         />
       </form>
       {query.length < 2 ? (

@@ -19,18 +19,23 @@ export function formatDate(value: Date | string | null | undefined) {
   }).format(date);
 }
 
-export function incidentLabel(row: { createdAt?: Date | string | null }) {
-  const date = formatDate(row.createdAt);
+export function incidentLabel(row: {
+  description?: string | null;
+  title?: string | null;
+  reportedAt?: Date | string | null;
+  createdAt?: Date | string | null;
+}) {
+  const text = row.description?.trim() || "";
+  if (text) return text.length > 90 ? `${text.slice(0, 87)}…` : text;
+  const date = formatDate(row.reportedAt || row.createdAt);
   return date === "—" ? "Incident" : `Incident · ${date}`;
 }
 
-export function incidentRecordFields(input?: {
-  title?: string | null;
-  description?: string | null;
-}) {
+export function incidentRecordFields(input?: { description?: string | null }) {
+  const description = input?.description?.trim() || "";
   return {
-    title: input?.title?.trim() || "Incident",
-    description: input?.description?.trim() || "",
+    title: description.slice(0, 200) || "Incident",
+    description,
   };
 }
 

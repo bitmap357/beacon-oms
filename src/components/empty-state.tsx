@@ -11,11 +11,11 @@ export function IllustratedEmpty({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[12px] border border-hairline bg-surface-raised px-5 py-10 text-center">
+    <div className="rounded-2xl border border-hairline bg-surface-raised px-6 py-12 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt="" className="mx-auto mb-4 h-28 w-28 object-contain" />
-      <p className="text-sm text-slate">{title}</p>
-      {action ? <div className="mt-3">{action}</div> : null}
+      <img src={image} alt="" className="mx-auto mb-4 h-32 w-32 object-contain" />
+      <p className="text-[15px] text-slate">{title}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }

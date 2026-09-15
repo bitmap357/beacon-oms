@@ -61,7 +61,7 @@ export async function POST(request: Request) {
           startTime: body.startTime ? new Date(body.startTime) : null,
           endTime: body.endTime ? new Date(body.endTime) : null,
           responsibleUserId: body.responsibleUserId,
-          description: body.description,
+          description: body.description?.trim() || "",
           findings: body.findings,
           notes: body.notes,
           createdById: user.id,

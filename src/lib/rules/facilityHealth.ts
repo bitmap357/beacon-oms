@@ -6,14 +6,7 @@
 import type { Prisma } from "@prisma/client";
 import type { FacilityHealth } from "@/lib/db-types";
 import { prisma } from "@/lib/db";
-
-const OPEN_INCIDENT_STATUSES = [
-  "NEW",
-  "ASSIGNED",
-  "IN_PROGRESS",
-  "AWAITING_QA",
-  "REOPENED",
-] as const;
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
 
 type Counts = {
   openIncidents: number;

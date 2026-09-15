@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
+import { IllustratedEmpty } from "@/components/empty-state";
+import { HandoverSnapshot } from "@/components/handover-snapshot";
 
 export default async function HandoversPage() {
   const user = await requireUser();
@@ -25,32 +27,44 @@ export default async function HandoversPage() {
     <div>
       <PageHeader
         title="Handovers"
-        description="Start a handover from a facility page so the snapshot is built server-side."
+        description="Start a handover from a facility page so the snapshot of open work is saved with the record."
+        illustration="/brand/illustrations/page-handovers.png"
       />
-      <Card>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Facility</TH>
-              <TH>From</TH>
-              <TH>To</TH>
-              <TH>Initiated by</TH>
-              <TH>Date</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {handovers.map((row) => (
-              <TR key={row.id}>
-                <TD>{row.facility.name}</TD>
-                <TD>{row.fromUser?.name || "—"}</TD>
-                <TD>{row.toUser?.name || "—"}</TD>
-                <TD>{row.initiatedBy.name}</TD>
-                <TD className="font-mono text-[12px]">{formatDate(row.createdAt)}</TD>
+      {handovers.length === 0 ? (
+        <IllustratedEmpty
+          title="No handovers yet. Open a facility and start one so coverage and open work are captured."
+          image="/brand/illustrations/page-handovers.png"
+        />
+      ) : (
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Facility</TH>
+                <TH>From</TH>
+                <TH>To</TH>
+                <TH>Initiated by</TH>
+                <TH>Snapshot</TH>
+                <TH>Date</TH>
               </TR>
-            ))}
-          </TBody>
-        </Table>
-      </Card>
+            </THead>
+            <TBody>
+              {handovers.map((row) => (
+                <TR key={row.id}>
+                  <TD>{row.facility.name}</TD>
+                  <TD>{row.fromUser?.name || "—"}</TD>
+                  <TD>{row.toUser?.name || "—"}</TD>
+                  <TD>{row.initiatedBy.name}</TD>
+                  <TD>
+                    <HandoverSnapshot value={row.summarySnapshot} />
+                  </TD>
+                  <TD className="font-mono text-[12px]">{formatDate(row.createdAt)}</TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

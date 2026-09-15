@@ -4,9 +4,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/input";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
+import { incidentStatusOptions } from "@/lib/incident-status";
+import { labelize } from "@/lib/utils";
+import { Plus, Upload } from "lucide-react";
 
 type FacilityOption = {
   id: string;
@@ -14,14 +17,21 @@ type FacilityOption = {
   branches: { id: string; name: string }[];
 };
 
+function todayIso() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function IncidentForm({
   facilities,
   users,
   defaultFacilityId,
+  canClose,
 }: {
   facilities: FacilityOption[];
   users: { id: string; name: string }[];
   defaultFacilityId?: string;
+  canClose: boolean;
 }) {
   const router = useRouter();
   const [facilityId, setFacilityId] = useState(
@@ -31,13 +41,17 @@ export function IncidentForm({
     () => facilities.find((row) => row.id === facilityId)?.branches || [],
     [facilities, facilityId],
   );
+  const statuses = incidentStatusOptions(canClose);
 
   async function onSubmit(formData: FormData) {
     try {
       await apiRequest("/api/incidents", {
         facilityId: formData.get("facilityId"),
         branchId: formData.get("branchId") || null,
-        priority: formData.get("priority"),
+        description: formData.get("description"),
+        status: formData.get("status"),
+        reportedAt: formData.get("reportedAt"),
+        priority: formData.get("priority") || "MEDIUM",
         assigneeId: formData.get("assigneeId") || null,
         dueDate: formData.get("dueDate") || null,
       });
@@ -50,6 +64,24 @@ export function IncidentForm({
 
   return (
     <form action={onSubmit} className="grid gap-3 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <Label>Incident</Label>
+        <Textarea name="description" required placeholder="What happened" />
+      </div>
+      <div>
+        <Label>Status</Label>
+        <Select name="status" required defaultValue="NEW">
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {labelize(status)}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label>Date reported</Label>
+        <Input name="reportedAt" type="date" required defaultValue={todayIso()} />
+      </div>
       <div>
         <Label>Facility</Label>
         <Select
@@ -77,8 +109,8 @@ export function IncidentForm({
         </Select>
       </div>
       <div>
-        <Label>Priority</Label>
-        <Select name="priority" required defaultValue="MEDIUM">
+        <Label>Priority (optional)</Label>
+        <Select name="priority" defaultValue="MEDIUM">
           <option value="LOW">Low</option>
           <option value="MEDIUM">Medium</option>
           <option value="HIGH">High</option>
@@ -86,7 +118,7 @@ export function IncidentForm({
         </Select>
       </div>
       <div>
-        <Label>Assignee</Label>
+        <Label>Assignee (optional)</Label>
         <Select name="assigneeId">
           <option value="">Unassigned</option>
           {users.map((row) => (
@@ -97,19 +129,30 @@ export function IncidentForm({
         </Select>
       </div>
       <div>
-        <Label>Due date</Label>
+        <Label>Due date (optional)</Label>
         <Input name="dueDate" type="date" />
       </div>
       <div className="md:col-span-2">
-        <Button>Create incident</Button>
+        <Button>
+          <Plus className="h-4 w-4" />
+          Create incident
+        </Button>
       </div>
     </form>
   );
 }
 
-export function IncidentImportForm({ facilityId }: { facilityId?: string }) {
+export function IncidentImportForm({
+  facilityId,
+  facilities,
+}: {
+  facilityId?: string;
+  facilities?: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [selectedFacilityId, setSelectedFacilityId] = useState(facilityId || "");
+  const scopedId = facilityId || selectedFacilityId;
 
   async function onSubmit(formData: FormData) {
     const file = formData.get("file");
@@ -117,7 +160,11 @@ export function IncidentImportForm({ facilityId }: { facilityId?: string }) {
       toast.error("Choose an Excel file first");
       return;
     }
-    if (facilityId) formData.set("facilityId", facilityId);
+    if (!scopedId) {
+      toast.error("Choose a facility before uploading");
+      return;
+    }
+    formData.set("facilityId", scopedId);
     setPending(true);
     try {
       const res = await fetch("/api/incidents/import", {
@@ -141,10 +188,26 @@ export function IncidentImportForm({ facilityId }: { facilityId?: string }) {
   return (
     <form action={onSubmit} className="space-y-3">
       <p className="text-[13px] text-slate">
-        {facilityId
-          ? "Columns: Branch, Priority, AssigneeEmail, DueDate. Facility is this site."
-          : "Columns: Facility, Branch, Priority, AssigneeEmail, DueDate. Download the template if you need the exact headings."}
+        Choose the facility here so names in Excel cannot be mistyped. Columns: Incident, Status,
+        DateReported. Optional: Branch, Priority, AssigneeEmail, DueDate.
       </p>
+      {!facilityId && facilities ? (
+        <div>
+          <Label>Facility</Label>
+          <Select
+            required
+            value={selectedFacilityId}
+            onChange={(event) => setSelectedFacilityId(event.target.value)}
+          >
+            <option value="">Select facility</option>
+            {facilities.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
       <div>
         <Label htmlFor="incident-import">Excel workbook (.xlsx)</Label>
         <Input
@@ -156,9 +219,12 @@ export function IncidentImportForm({ facilityId }: { facilityId?: string }) {
         />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={pending}>{pending ? "Importing..." : "Upload incidents"}</Button>
+        <Button disabled={pending}>
+          <Upload className="h-4 w-4" />
+          {pending ? "Importing..." : "Upload incidents"}
+        </Button>
         <Button asChild variant="secondary">
-          <a href={facilityId ? `/api/incidents/import/template?facilityId=${facilityId}` : "/api/incidents/import/template"}>
+          <a href={scopedId ? `/api/incidents/import/template?facilityId=${scopedId}` : "/api/incidents/import/template"}>
             Download template
           </a>
         </Button>

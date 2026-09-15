@@ -4,7 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getScopedFacilityIds } from "@/lib/permissions";
+import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/page";
 import { CalendarBoard, type CalendarEvent } from "@/components/calendar-board";
 import { ScopeFilter } from "@/components/scope-filter";
@@ -33,7 +33,13 @@ export default async function CalendarPage({
   const [activities, actions, facilities, users] = await Promise.all([
     prisma.activity.findMany({
       where: { facilityId: { in: ids }, date: { gte: start, lt: end } },
-      include: { facility: true, responsibleUser: true },
+      include: {
+        facility: true,
+        responsibleUser: true,
+        reports: { select: { id: true }, take: 1 },
+        participants: { include: { user: { select: { name: true } } } },
+        attachments: { where: { deletedAt: null }, select: { id: true, fileName: true, fileSizeBytes: true } },
+      },
       orderBy: { date: "asc" },
     }),
     prisma.action.findMany({
@@ -60,14 +66,27 @@ export default async function CalendarPage({
   const events: CalendarEvent[] = [
     ...activities.map((row) => ({
       id: row.id,
-      kind: row.type === "SITE_VISIT" ? ("visit" as const) : ("activity" as const),
-      title: row.type === "SITE_VISIT" ? `Visit · ${row.facility.name}` : row.facility.name,
+      kind: ["SITE_VISIT", "DEMONSTRATION", "TRAINING"].includes(row.type)
+        ? ("visit" as const)
+        : ("activity" as const),
+      title:
+        row.type === "SITE_VISIT"
+          ? `Site visit · ${row.facility.name}`
+          : row.type === "DEMONSTRATION"
+            ? `Demo / meeting · ${row.facility.name}`
+            : row.type === "TRAINING"
+              ? `Training · ${row.facility.name}`
+              : row.facility.name,
       facility: row.facility.name,
       facilityId: row.facilityId,
       at: (row.startTime || row.date).toISOString(),
       end: row.endTime?.toISOString() || null,
-      href: `/facilities/${row.facilityId}`,
+      href: row.reports[0] ? `/reports/${row.reports[0].id}` : `/facilities/${row.facilityId}`,
       by: row.responsibleUser.name,
+      activityType: row.type,
+      reportId: row.reports[0]?.id || null,
+      members: row.participants.map((participant) => participant.user.name),
+      attachments: row.attachments,
     })),
     ...actions.map((row) => ({
       id: row.id,
@@ -86,7 +105,8 @@ export default async function CalendarPage({
     <div>
       <PageHeader
         title="Calendar"
-        description="Site visits are logged as timed activities. Open a day — even one that already has a visit — to record who went, when, and what was covered. Gold is a visit, blue is other activity, red is an action due date."
+        description="Jump to any past or future day, then log a site visit, demo/meeting, or training. A report is optional and can be attached later."
+        illustration="/brand/illustrations/page-calendar.png"
         actions={<ScopeFilter />}
       />
       <CalendarBoard
@@ -98,6 +118,7 @@ export default async function CalendarPage({
         facilities={facilities}
         users={users}
         currentUserId={user.id}
+        canWriteReport={hasPermission(user.role, "reports.manage")}
       />
     </div>
   );

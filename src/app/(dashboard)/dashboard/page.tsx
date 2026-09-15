@@ -41,11 +41,9 @@ const HEALTH_COLORS: Record<string, string> = {
 };
 const STATUS_COLORS: Record<string, string> = {
   NEW: "#1558D6",
-  ASSIGNED: "#3D7CFF",
   IN_PROGRESS: "#E8B923",
-  AWAITING_QA: "#854F0B",
+  ON_HOLD: "#854F0B",
   REOPENED: "#8A3A16",
-  RESOLVED: "#1D6B45",
   CLOSED: "#5B6472",
 };
 const ACTION_COLORS: Record<string, string> = {
@@ -408,7 +406,10 @@ export default async function DashboardPage({
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">High / critical open incidents</h2>
           {openIncidentRows.length === 0 ? (
-            <IllustratedEmpty title="No high or critical incidents are open." />
+            <IllustratedEmpty
+              title="No high or critical incidents are open."
+              image="/brand/illustrations/page-incidents.png"
+            />
           ) : (
             <Table>
               <THead>
@@ -444,7 +445,10 @@ export default async function DashboardPage({
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Overdue actions</h2>
           {overdueActionRows.length === 0 ? (
-            <IllustratedEmpty title="No overdue actions." />
+            <IllustratedEmpty
+              title="No overdue actions."
+              image="/brand/illustrations/page-actions.png"
+            />
           ) : (
             <Table>
               <THead>
@@ -481,7 +485,7 @@ export default async function DashboardPage({
           {visits.length === 0 ? (
             <IllustratedEmpty
               title="No facilities currently flagged for a visit."
-              image="/brand/illustrations/empty-calendar.png"
+              image="/brand/illustrations/page-calendar.png"
             />
           ) : (
             <ul className="space-y-3">

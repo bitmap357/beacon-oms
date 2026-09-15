@@ -1,8 +1,8 @@
 /** GET/POST incidents. List filters: facilityId, status, priority. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
-import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
-import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permissions";
+import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
+import { assertFacilityAccess, getAccessibleFacilityIds, hasPermission } from "@/lib/permissions";
 import { incidentSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
@@ -52,19 +52,23 @@ export async function POST(request: Request) {
       });
       if (!branch) return json({ error: "Branch does not belong to this facility" }, 400);
     }
+    if (body.status === "CLOSED" && !hasPermission(user.role, "qa.manage")) {
+      throw new HttpError(403, "Only PM/QA can close an incident");
+    }
     const meta = requestMeta(request);
     const incident = await prisma.$transaction(async (tx) => {
       const next = await tx.incident.create({
         data: {
-          ...incidentRecordFields(),
+          ...incidentRecordFields({ description: body.description }),
           facilityId: body.facilityId,
           branchId: body.branchId || null,
           reporterId: user.id,
-          priority: body.priority,
+          priority: body.priority || "MEDIUM",
           assigneeId: body.assigneeId || null,
           relatedActivityId: body.relatedActivityId || null,
           dueDate: body.dueDate ? new Date(body.dueDate) : null,
-          status: body.assigneeId ? "ASSIGNED" : "NEW",
+          reportedAt: new Date(body.reportedAt),
+          status: body.status,
         },
       });
       await tx.incidentHistory.create({

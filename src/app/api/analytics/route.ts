@@ -3,7 +3,9 @@ import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { getAccessibleFacilityIds } from "@/lib/permissions";
 
-const OPEN = ["NEW", "ASSIGNED", "IN_PROGRESS", "AWAITING_QA", "REOPENED"] as const;
+import { OPEN_INCIDENT_STATUSES } from "@/lib/incident-status";
+
+const OPEN = OPEN_INCIDENT_STATUSES;
 
 export async function GET() {
   try {
