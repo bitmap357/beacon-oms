@@ -6,9 +6,9 @@ import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { SimpleForm } from "@/components/forms";
+import { ActionForm } from "@/components/action-form";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
-import { TonePill } from "@/components/ui/status-pill";
+import { ActionStatusPill } from "@/components/ui/status-pill";
 import { ScopeFilter } from "@/components/scope-filter";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
@@ -56,12 +56,12 @@ export default async function ActionsPage({
     prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
     prisma.incident.findMany({
       where: {
-        facilityId: { in: scopedIds },
+        facilityId: { in: ids },
         status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
       },
-      select: { id: true, title: true, description: true, createdAt: true, reportedAt: true },
+      select: { id: true, facilityId: true, title: true, description: true, createdAt: true, reportedAt: true },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 200,
     }),
   ]);
   const canManage = hasPermission(user.role, "actions.manage");
@@ -107,46 +107,13 @@ export default async function ActionsPage({
       />
       {canManage ? (
         <CollapsibleSection title="Create action">
-          <SimpleForm
-            action="/api/actions"
-            submitLabel="Create action"
-            fields={[
-            {
-              name: "facilityId",
-              label: "Facility",
-              required: true,
-              options: facilities.map((row) => ({ value: row.id, label: row.name })),
-            },
-            {
-              name: "incidentId",
-              label: "Related incident",
-              options: [
-                { value: query.incidentId || "", label: query.incidentId ? "Selected incident" : "None" },
-                ...incidents
-                  .filter((row) => row.id !== query.incidentId)
-                  .map((row) => ({ value: row.id, label: incidentLabel(row) })),
-              ],
-            },
-            { name: "title", label: "Title", required: true },
-            {
-              name: "ownerId",
-              label: "Owner",
-              required: true,
-              options: users.map((row) => ({ value: row.id, label: row.name })),
-            },
-            {
-              name: "priority",
-              label: "Priority",
-              required: true,
-              options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
-                value,
-                label: labelize(value),
-              })),
-            },
-            { name: "dueDate", label: "Due date", type: "date", required: true },
-            { name: "description", label: "Description", textarea: true },
-              ]}
-            />
+          <ActionForm
+            facilities={facilities}
+            incidents={incidents}
+            users={users}
+            defaultFacilityId={query.facilityId}
+            defaultIncidentId={query.incidentId}
+          />
         </CollapsibleSection>
       ) : null}
       {actions.length === 0 ? (
@@ -174,7 +141,18 @@ export default async function ActionsPage({
                   row.dueDate < now && OPEN_ACTION_STATUSES.includes(row.status as (typeof OPEN_ACTION_STATUSES)[number]);
                 return (
                   <TR key={row.id}>
-                    <TD>{row.title}</TD>
+                    <TD>
+                      <Link
+                        className="text-brand"
+                        href={
+                          row.incidentId
+                            ? `/incidents/${row.incidentId}`
+                            : `/facilities/${row.facilityId}`
+                        }
+                      >
+                        {row.title}
+                      </Link>
+                    </TD>
                     <TD>
                       {row.incident ? (
                         <Link className="text-brand" href={`/incidents/${row.incident.id}`}>
@@ -192,9 +170,7 @@ export default async function ActionsPage({
                     <TD>{row.owner.name}</TD>
                     <TD className="font-mono text-[12px]">{formatDate(row.dueDate)}</TD>
                     <TD>
-                      <TonePill tone={overdue ? "danger" : row.status === "COMPLETED" ? "ok" : "neutral"}>
-                        {overdue ? "Overdue" : labelize(row.status)}
-                      </TonePill>
+                      <ActionStatusPill status={row.status} overdue={overdue} />
                     </TD>
                     <TD className="whitespace-nowrap">
                       {canManage ? (

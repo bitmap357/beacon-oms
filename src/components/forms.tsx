@@ -18,10 +18,12 @@ export async function apiRequest<T>(
 ) {
   const res = await fetch(path, {
     method,
+    credentials: "include",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error("Session expired. Sign in again.");
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data as T;
 }

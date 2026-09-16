@@ -8,6 +8,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
 import { StatusPill } from "@/components/ui/status-pill";
+import { formatContact } from "@/lib/utils";
 import { EditDeleteControls } from "@/components/record-actions";
 
 export function OrganizationTree({
@@ -281,9 +282,13 @@ export function OrganizationTree({
                             ) : (
                               <span className="text-slate"> · No location set</span>
                             )}
-                            {branch.contactPerson ? (
-                              <span className="text-slate"> · {branch.contactPerson}</span>
-                            ) : null}
+                            {formatContact(branch.contactPerson, branch.contactPhone, branch.contactEmail) ? (
+                              <span className="block text-[12px] text-slate">
+                                Contact: {formatContact(branch.contactPerson, branch.contactPhone, branch.contactEmail)}
+                              </span>
+                            ) : (
+                              <span className="block text-[12px] text-slate">No contact listed</span>
+                            )}
                           </span>
                           {canManageFacilities ? (
                             <EditDeleteControls

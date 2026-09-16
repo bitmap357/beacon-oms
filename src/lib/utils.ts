@@ -69,6 +69,15 @@ export function formatRole(value: string) {
   return labels[value] ?? labelize(value);
 }
 
+export function formatContact(
+  person?: string | null,
+  phone?: string | null,
+  email?: string | null,
+) {
+  const parts = [person, phone, email].filter((value): value is string => Boolean(value?.trim()));
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export function daysBetween(from: Date, to = new Date()) {
   const ms = to.getTime() - from.getTime();
   return Math.floor(ms / (1000 * 60 * 60 * 24));

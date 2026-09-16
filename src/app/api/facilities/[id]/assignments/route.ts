@@ -1,9 +1,15 @@
-/** POST PM/QA or developer assignment. Lead uniqueness is enforced here. */
+/** POST PM/QA or developer assignment. Type is inferred from the person's role. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { assertFacilityAccess } from "@/lib/permissions";
 import { assignmentSchema } from "@/lib/validation";
+
+function assignmentTypeFromRole(role: string) {
+  if (role === "DEVELOPER") return "DEVELOPER" as const;
+  if (role === "PM_QA") return "PM_QA" as const;
+  throw new HttpError(400, "Only PM/QA and developers can be assigned to a facility");
+}
 
 export async function GET(
   _request: Request,
@@ -36,49 +42,60 @@ export async function POST(
     const body = assignmentSchema.parse(await request.json());
     const assignee = await prisma.user.findUnique({ where: { id: body.userId } });
     if (!assignee || !assignee.isActive) throw new HttpError(400, "User not found");
-    if (body.assignmentType === "PM_QA" && assignee.role !== "PM_QA" && assignee.role !== "ADMIN") {
-      throw new HttpError(400, "PM/QA assignments must go to a PM/QA user");
-    }
-    if (body.assignmentType === "DEVELOPER" && assignee.role !== "DEVELOPER" && assignee.role !== "ADMIN") {
-      throw new HttpError(400, "Developer assignments must go to a developer");
-    }
+    const assignmentType = assignmentTypeFromRole(assignee.role);
+    const isLead = Boolean(body.isLead);
     const meta = requestMeta(request);
-    const assignment = await prisma.$transaction(async (tx) => {
-      if (body.isLead) {
+    const { assignment, created } = await prisma.$transaction(async (tx) => {
+      if (isLead) {
         await tx.facilityAssignment.updateMany({
           where: {
             facilityId: id,
-            assignmentType: body.assignmentType,
+            assignmentType,
             isLead: true,
             isActive: true,
+            userId: { not: body.userId },
           },
           data: { isLead: false },
         });
       }
-      const next = await tx.facilityAssignment.create({
-        data: {
-          facilityId: id,
-          userId: body.userId,
-          assignmentType: body.assignmentType,
-          isLead: Boolean(body.isLead),
-        },
+      const existing = await tx.facilityAssignment.findFirst({
+        where: { facilityId: id, userId: body.userId, isActive: true },
       });
+      const next = existing
+        ? await tx.facilityAssignment.update({
+            where: { id: existing.id },
+            data: { assignmentType, isLead },
+          })
+        : await tx.facilityAssignment.create({
+            data: {
+              facilityId: id,
+              userId: body.userId,
+              assignmentType,
+              isLead,
+            },
+          });
       await logAudit(tx, {
         userId: user.id,
-        action: body.isLead ? "assignment.lead_set" : "assignment.created",
+        action: existing
+          ? isLead
+            ? "assignment.lead_set"
+            : "assignment.updated"
+          : isLead
+            ? "assignment.lead_set"
+            : "assignment.created",
         entityType: "FacilityAssignment",
         entityId: next.id,
         newValue: {
           facilityId: id,
           userId: body.userId,
-          assignmentType: body.assignmentType,
-          isLead: Boolean(body.isLead),
+          assignmentType,
+          isLead,
         },
         ...meta,
       });
-      return next;
+      return { assignment: next, created: !existing };
     });
-    return json({ assignment }, 201);
+    return json({ assignment }, created ? 201 : 200);
   } catch (error) {
     return errorResponse(error);
   }

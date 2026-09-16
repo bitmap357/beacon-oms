@@ -4,7 +4,7 @@
  */
 import Link from "next/link";
 import { Card, MetricCard } from "@/components/ui/card";
-import { StatusPill, TonePill } from "@/components/ui/status-pill";
+import { StatusPill, PriorityPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart, DonutChart, HorizontalBarChart, LineChart, ChartKey } from "@/components/charts";
 import { requireUser } from "@/lib/session";
@@ -454,7 +454,7 @@ export default async function DashboardPage({
                       {row.branch ? <span className="text-slate"> · {row.branch.name}</span> : null}
                     </TD>
                     <TD>
-                      <TonePill tone="danger">{labelize(row.priority)}</TonePill>
+                      <PriorityPill priority={row.priority} />
                     </TD>
                   </TR>
                 ))}

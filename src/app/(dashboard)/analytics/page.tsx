@@ -1,4 +1,5 @@
 /** Cross-facility charts. Permission: analytics.view */
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertPermission, getAccessibleFacilityIds } from "@/lib/permissions";
@@ -140,12 +141,36 @@ export default async function AnalyticsPage({
           <TBody>
             {teamRows.map((row) => (
               <TR key={row.id}>
-                <TD>{row.name}</TD>
-                <TD>{row.assigned}</TD>
-                <TD>{row.openIncidents}</TD>
-                <TD>{row.openActions}</TD>
-                <TD>{row.overdue}</TD>
-                <TD>{row.activityVolume}</TD>
+                <TD>
+                  <Link className="text-brand" href={`/profile/${row.id}`}>
+                    {row.name}
+                  </Link>
+                </TD>
+                <TD>
+                  <Link className="text-brand" href={`/facilities?userId=${row.id}`}>
+                    {row.assigned}
+                  </Link>
+                </TD>
+                <TD>
+                  <Link className="text-brand" href={`/incidents?assigneeId=${row.id}&status=open`}>
+                    {row.openIncidents}
+                  </Link>
+                </TD>
+                <TD>
+                  <Link className="text-brand" href={`/actions?ownerId=${row.id}`}>
+                    {row.openActions}
+                  </Link>
+                </TD>
+                <TD>
+                  <Link className="text-brand" href={`/actions?ownerId=${row.id}&overdue=1`}>
+                    {row.overdue}
+                  </Link>
+                </TD>
+                <TD>
+                  <Link className="text-brand" href={`/calendar?userId=${row.id}`}>
+                    {row.activityVolume}
+                  </Link>
+                </TD>
               </TR>
             ))}
           </TBody>

@@ -8,6 +8,7 @@
  */
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 import type { SessionUser } from "@/lib/permissions";
 import { hasPermission, type Permission } from "@/lib/permissions";
 
@@ -26,6 +27,10 @@ export function json<T>(data: T, status = 200) {
 export function errorResponse(error: unknown) {
   if (error instanceof HttpError) {
     return json({ error: error.message }, error.status);
+  }
+  if (error instanceof ZodError) {
+    const first = error.issues[0];
+    return json({ error: first?.message || "Invalid input" }, 400);
   }
   if (error instanceof Error && "status" in error) {
     const status = Number((error as { status?: number }).status) || 400;

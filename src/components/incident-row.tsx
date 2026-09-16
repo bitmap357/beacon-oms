@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { TonePill } from "@/components/ui/status-pill";
+import { IncidentStatusPill, PriorityPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { apiRequest } from "@/components/forms";
 import { EditDeleteControls } from "@/components/record-actions";
@@ -165,7 +165,7 @@ export function IncidentRow({
       ))}
     </Select>
   ) : (
-    labelIncidentStatus(incident.status)
+    <IncidentStatusPill status={incident.status} />
   );
 
   const compact = variant === "row";
@@ -281,9 +281,7 @@ export function IncidentRow({
             {incidentLabel(incident)}
           </Link>
           <span className="shrink-0">
-            <TonePill tone={incident.priority === "CRITICAL" || incident.priority === "HIGH" ? "danger" : "warn"}>
-              {labelize(incident.priority)}
-            </TonePill>
+            <PriorityPill priority={incident.priority} />
           </span>
         </div>
         <p className="mt-1 text-[13px] text-slate">
@@ -323,9 +321,7 @@ export function IncidentRow({
           {incident.branchName ? <span className="text-slate"> · {incident.branchName}</span> : null}
         </TD>
         <TD>
-          <TonePill tone={incident.priority === "CRITICAL" || incident.priority === "HIGH" ? "danger" : "warn"}>
-            {labelize(incident.priority)}
-          </TonePill>
+          <PriorityPill priority={incident.priority} />
         </TD>
         <TD>{statusControl}</TD>
         <TD>

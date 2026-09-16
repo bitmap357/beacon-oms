@@ -4,12 +4,15 @@ import { cn } from "@/lib/utils";
 
 export function Card({
   className,
+  tint,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: React.HTMLAttributes<HTMLDivElement> & { tint?: "navy" | "gold" }) {
   return (
     <div
       className={cn(
         "rounded-2xl border border-hairline bg-surface-raised shadow-[0_1px_0_rgba(28,36,48,0.04)]",
+        tint === "navy" && "border-brand/25 bg-gradient-to-b from-[#e8eefc]/70 to-surface-raised dark:from-[#152445]/80",
+        tint === "gold" && "border-gold/35 bg-gradient-to-b from-[#f8efd0]/60 to-surface-raised dark:from-[#32280f]/70",
         className,
       )}
       {...props}

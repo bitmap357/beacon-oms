@@ -17,12 +17,21 @@ export const ACTIVITY_TYPES: Array<{ value: ActivityType; label: string }> = [
 
 export const ACTIVITY_TYPE_VALUES = ACTIVITY_TYPES.map((row) => row.value);
 
+export const VISIT_TYPES: ActivityType[] = [
+  "SITE_VISIT",
+  "TRAINING",
+  "DEMONSTRATION",
+  "DEPLOYMENT",
+  "INSTALLATION",
+  "SYSTEM_REVIEW",
+];
+
 export function labelActivityType(type: string) {
   return ACTIVITY_TYPES.find((row) => row.value === type)?.label ?? type.replaceAll("_", " ").toLowerCase();
 }
 
 export function isVisitType(type: string) {
-  return ACTIVITY_TYPE_VALUES.includes(type as ActivityType);
+  return VISIT_TYPES.includes(type as ActivityType);
 }
 
 export function reportTypeForActivity(type: string): ReportType {
@@ -35,8 +44,9 @@ export async function uploadActivityFile(activityId: string, file: File) {
   form.set("file", file);
   form.set("relatedType", "ACTIVITY");
   form.set("relatedId", activityId);
-  const res = await fetch("/api/attachments", { method: "POST", body: form });
+  const res = await fetch("/api/attachments", { method: "POST", body: form, credentials: "include" });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error("Session expired. Sign in again.");
   if (!res.ok) throw new Error(data.error || "Could not attach the report file");
   return data;
 }

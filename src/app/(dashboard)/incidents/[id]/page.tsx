@@ -5,9 +5,11 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { PageHeader } from "@/components/ui/page";
-import { TonePill } from "@/components/ui/status-pill";
+import { IncidentStatusPill, PriorityPill, ActionStatusPill } from "@/components/ui/status-pill";
 import { SimpleForm } from "@/components/forms";
+import { ActionForm } from "@/components/action-form";
 import { formatDate, formatDateTime, incidentLabel, labelize } from "@/lib/utils";
 import { DeleteButton } from "@/components/record-actions";
 import { IncidentCommentForm } from "@/components/incident-comment-form";
@@ -40,6 +42,7 @@ export default async function IncidentDetailPage({
   const canManage = hasPermission(user.role, "incidents.manage");
   const canUpdate = hasPermission(user.role, "incidents.create") || canManage;
   const canClose = hasPermission(user.role, "qa.manage");
+  const canAddAction = hasPermission(user.role, "actions.manage");
   const users = await prisma.user.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
@@ -53,21 +56,20 @@ export default async function IncidentDetailPage({
         illustration="/brand/illustrations/page-incidents.png"
         actions={
           <div className="flex items-center gap-2">
-            <TonePill tone={incident.priority === "CRITICAL" ? "danger" : "warn"}>
-              {labelize(incident.priority)}
-            </TonePill>
+            <PriorityPill priority={incident.priority} />
             {canManage ? <DeleteButton path={`/api/incidents/${incident.id}`} redirectTo="/incidents" /> : null}
           </div>
         }
       />
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="p-5 xl:col-span-2">
+        <Card tint="navy" className="p-5 xl:col-span-2">
           <p className="text-sm whitespace-pre-wrap">{incident.description || "Incident"}</p>
           <p className="mt-4 text-[13px] text-slate">
             <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
               {incident.facility.name}
             </Link>
-            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} · status {labelIncidentStatus(incident.status)}
+            {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} ·{" "}
+            <IncidentStatusPill status={incident.status} />
           </p>
           {incident.resolutionInfo ? (
             <p className="mt-3 text-sm">Resolution: {incident.resolutionInfo}</p>
@@ -83,48 +85,46 @@ export default async function IncidentDetailPage({
           {incident.actions.length === 0 ? (
             <p className="mb-3 text-sm text-slate">This incident has no follow-up actions yet.</p>
           ) : (
-            <ul className="mb-4 space-y-2 text-sm">
-              {incident.actions.map((row) => (
-                <li key={row.id}>
-                  {row.title} · {row.owner.name} · due {formatDate(row.dueDate)} · {labelize(row.status)}
-                </li>
-              ))}
-            </ul>
+            <Table className="mb-4">
+              <THead>
+                <TR>
+                  <TH>Action</TH>
+                  <TH>Owner</TH>
+                  <TH>Due</TH>
+                  <TH>Status</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {incident.actions.map((row) => (
+                  <TR key={row.id}>
+                    <TD>
+                      <Link className="text-brand" href={`/actions?incidentId=${incident.id}`}>
+                        {row.title}
+                      </Link>
+                    </TD>
+                    <TD>{row.owner.name}</TD>
+                    <TD className="font-mono text-[12px]">{formatDate(row.dueDate)}</TD>
+                    <TD>
+                      <ActionStatusPill status={row.status} />
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
           )}
-          <SimpleForm
-            action="/api/actions"
-            submitLabel="Add action"
-            fields={[
-              {
-                name: "facilityId",
-                label: "Facility",
-                options: [{ value: incident.facilityId, label: incident.facility.name }],
-              },
-              {
-                name: "incidentId",
-                label: "Incident",
-                options: [{ value: incident.id, label: incidentLabel(incident) }],
-              },
-              { name: "title", label: "Action title", required: true },
-              {
-                name: "ownerId",
-                label: "Owner",
-                required: true,
-                options: users.map((row) => ({ value: row.id, label: row.name })),
-              },
-              {
-                name: "priority",
-                label: "Priority",
-                required: true,
-                options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
-                  value,
-                  label: labelize(value),
-                })),
-              },
-              { name: "dueDate", label: "Due date", type: "date", required: true },
-              { name: "description", label: "Description", textarea: true },
-            ]}
-          />
+          {canAddAction ? (
+            <ActionForm
+              facilities={[{ id: incident.facilityId, name: incident.facility.name }]}
+              incidents={[incident]}
+              users={users}
+              defaultFacilityId={incident.facilityId}
+              defaultIncidentId={incident.id}
+              lockFacility
+              lockIncident
+            />
+          ) : (
+            <p className="text-sm text-slate">You can view actions. Adding one needs action permission.</p>
+          )}
           <h2 className="font-heading mt-6 mb-2 text-[18px]">Comments</h2>
           {incident.comments.length === 0 ? (
             <p className="mb-3 text-sm text-slate">No comments yet. Add a follow-up or note if you are waiting on a response.</p>
@@ -156,7 +156,7 @@ export default async function IncidentDetailPage({
             ))}
           </ol>
         </Card>
-        <Card className="p-5">
+        <Card tint="gold" className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Update</h2>
           {canUpdate ? (
           <SimpleForm
@@ -172,6 +172,15 @@ export default async function IncidentDetailPage({
                   label: labelIncidentStatus(value),
                 })),
                 defaultValue: String(canonicalIncidentStatus(incident.status)),
+              },
+              {
+                name: "priority",
+                label: "Priority",
+                options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
+                  value,
+                  label: labelize(value),
+                })),
+                defaultValue: incident.priority,
               },
               {
                 name: "description",

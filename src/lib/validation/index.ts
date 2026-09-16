@@ -110,7 +110,7 @@ export const statusOverrideSchema = z.object({
 
 export const assignmentSchema = z.object({
   userId: z.string().min(1),
-  assignmentType: z.enum(["PM_QA", "DEVELOPER"]),
+  assignmentType: z.enum(["PM_QA", "DEVELOPER"]).optional(),
   isLead: z.preprocess(
     (value) => value === true || value === "true",
     z.boolean().optional(),

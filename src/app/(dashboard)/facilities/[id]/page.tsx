@@ -8,18 +8,18 @@ import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
-import { StatusPill, TonePill } from "@/components/ui/status-pill";
+import { StatusPill, IncidentStatusPill, PriorityPill, ActionStatusPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
 import { ActivityForm, EditVisitButton } from "@/components/activity-form";
 import { HandoverSnapshot } from "@/components/handover-snapshot";
-import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from "@/lib/utils";
+import { formatDate, formatDateTime, formatContact, formatRole, incidentLabel, labelize } from "@/lib/utils";
 import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
 import { DeleteButton, EditDeleteControls } from "@/components/record-actions";
 import { AssignmentActions } from "@/components/assignment-actions";
 import { isClosedIncidentStatus, isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
-import { labelActivityType } from "@/lib/activity-types";
+import { isVisitType, labelActivityType } from "@/lib/activity-types";
 import { Plus } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -52,7 +52,7 @@ export default async function FacilityDetailPage({
     }),
     prisma.action.findMany({
       where: { facilityId: id },
-      include: { owner: true },
+      include: { owner: true, incident: true },
       orderBy: { dueDate: "asc" },
     }),
     prisma.activity.findMany({
@@ -91,7 +91,10 @@ export default async function FacilityDetailPage({
     hasPm && !leadPm ? "a Lead PM/QA" : null,
     hasDev && !leadDev ? "a Lead Developer" : null,
   ].filter((row): row is string => Boolean(row));
-  const lastVisit = activities[0];
+  const visits = activities.filter((row) => isVisitType(row.type));
+  const otherActivities = activities.filter((row) => !isVisitType(row.type));
+  const lastVisit = visits[0];
+  const openActions = actions.filter((row) => row.status !== "COMPLETED" && row.status !== "CANCELLED");
   const userOptions = users.map((row) => ({ id: row.id, name: row.name }));
   const canWrite = hasPermission(user.role, "activities.create");
 
@@ -171,15 +174,13 @@ export default async function FacilityDetailPage({
               <dd>{facility.location || "—"}</dd>
             </div>
             <div>
-              <dt className="text-slate">Contact person</dt>
+              <dt className="text-slate">Contact</dt>
               <dd>
-                {facility.contactPerson || facility.contactInfo || "—"}
-                {facility.contactPhone ? (
-                  <span className="block text-[12px] text-slate">{facility.contactPhone}</span>
-                ) : null}
-                {facility.contactEmail ? (
-                  <span className="block text-[12px] text-slate">{facility.contactEmail}</span>
-                ) : null}
+                {formatContact(
+                  facility.contactPerson || facility.contactInfo,
+                  facility.contactPhone,
+                  facility.contactEmail,
+                ) || "No contact listed"}
               </dd>
             </div>
             <div>
@@ -270,24 +271,15 @@ export default async function FacilityDetailPage({
                 .filter((row) => row.role === "PM_QA" || row.role === "DEVELOPER")
                 .map((row) => ({
                   value: row.id,
-                  label: `${row.name} (${row.role})`,
+                  label: `${row.name} (${row.role === "PM_QA" ? "PM/QA" : "Developer"})`,
                 })),
                 },
                 {
-                  name: "assignmentType",
-                  label: "Assignment type",
-                  required: true,
-                  options: [
-                    { value: "PM_QA", label: "PM/QA" },
-                    { value: "DEVELOPER", label: "Developer" },
-                  ],
-                },
-                {
                   name: "isLead",
-                  label: "Lead for this role",
+                  label: "Role on this facility",
                   options: [
                     { value: "false", label: "Team member" },
-                    { value: "true", label: "Yes — make this person the lead" },
+                    { value: "true", label: "Lead" },
                   ],
                 },
               ]}
@@ -311,13 +303,13 @@ export default async function FacilityDetailPage({
                 <div>
                   {branch.name}
                   {branch.location ? <span className="text-slate"> · {branch.location}</span> : null}
-                  {branch.contactPerson ? (
+                  {formatContact(branch.contactPerson, branch.contactPhone, branch.contactEmail) ? (
                     <span className="block text-[12px] text-slate">
-                      Contact: {branch.contactPerson}
-                      {branch.contactPhone ? ` · ${branch.contactPhone}` : ""}
-                      {branch.contactEmail ? ` · ${branch.contactEmail}` : ""}
+                      Contact: {formatContact(branch.contactPerson, branch.contactPhone, branch.contactEmail)}
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="block text-[12px] text-slate">No contact listed</span>
+                  )}
                 </div>
                 {hasPermission(user.role, "facilities.manage") ? (
                   <div className="mt-2">
@@ -365,8 +357,11 @@ export default async function FacilityDetailPage({
       </Card>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card className="p-5">
+        <Card tint="navy" className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Open incidents</h2>
+          {openIncidents.length === 0 ? (
+            <p className="text-sm text-slate">No open incidents.</p>
+          ) : (
           <Table>
             <THead>
               <TR>
@@ -387,17 +382,18 @@ export default async function FacilityDetailPage({
                     ) : null}
                   </TD>
                   <TD>
-                    <TonePill tone={row.priority === "CRITICAL" ? "danger" : "warn"}>
-                      {labelize(row.priority)}
-                    </TonePill>
+                    <PriorityPill priority={row.priority} />
                   </TD>
-                  <TD>{labelIncidentStatus(row.status)}</TD>
+                  <TD>
+                    <IncidentStatusPill status={row.status} />
+                  </TD>
                 </TR>
               ))}
             </TBody>
           </Table>
+          )}
         </Card>
-        <Card className="p-5">
+        <Card tint="navy" className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Closed incidents</h2>
           {closedIncidents.length === 0 ? (
             <p className="text-sm text-slate">No closed incidents yet.</p>
@@ -419,9 +415,7 @@ export default async function FacilityDetailPage({
                       </Link>
                     </TD>
                     <TD>
-                      <TonePill tone={row.priority === "CRITICAL" ? "danger" : "warn"}>
-                        {labelize(row.priority)}
-                      </TonePill>
+                      <PriorityPill priority={row.priority} />
                     </TD>
                     <TD className="font-mono text-[12px]">
                       {row.closedAt ? formatDate(row.closedAt) : labelIncidentStatus(row.status)}
@@ -433,78 +427,166 @@ export default async function FacilityDetailPage({
           )}
         </Card>
       </div>
-      <Card className="mt-4 p-5">
+      <Card tint="gold" className="mt-4 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Open actions</h2>
+        {openActions.length === 0 ? (
+          <p className="text-sm text-slate">No open actions for this facility.</p>
+        ) : (
         <Table>
             <THead>
               <TR>
                 <TH>Title</TH>
+                <TH>Incident</TH>
                 <TH>Due</TH>
                 <TH>Owner</TH>
+                <TH>Status</TH>
               </TR>
             </THead>
             <TBody>
-              {actions
-                .filter((row) => row.status !== "COMPLETED" && row.status !== "CANCELLED")
-                .map((row) => (
+              {openActions.map((row) => {
+                const overdue = row.dueDate < new Date() && isOpenActionStatus(row.status);
+                return (
                   <TR key={row.id}>
-                    <TD>{row.title}</TD>
+                    <TD>
+                      <Link
+                        className="text-brand"
+                        href={
+                          row.incidentId
+                            ? `/actions?incidentId=${row.incidentId}`
+                            : `/actions?facilityId=${id}`
+                        }
+                      >
+                        {row.title}
+                      </Link>
+                    </TD>
+                    <TD>
+                      {row.incident ? (
+                        <Link className="text-brand" href={`/incidents/${row.incident.id}`}>
+                          {incidentLabel(row.incident)}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </TD>
                     <TD className="font-mono text-[12px]">{formatDate(row.dueDate)}</TD>
                     <TD>{row.owner.name}</TD>
+                    <TD>
+                      <ActionStatusPill status={row.status} overdue={overdue} />
+                    </TD>
                   </TR>
-                ))}
+                );
+              })}
             </TBody>
           </Table>
+        )}
       </Card>
 
-      <Card className="mt-4 p-5">
-        <h2 className="font-heading mb-3 text-[18px]">Timeline</h2>
-        <ol className="space-y-3">
-          {activities.map((row) => (
-            <li key={row.id} className="border-l border-hairline pl-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-[12px] font-mono text-slate">
-                    {formatDateTime(row.startTime || row.date)}
-                    {row.endTime ? ` – ${formatDateTime(row.endTime)}` : ""}
-                  </p>
-                  <p className="text-sm">
-                    {labelActivityType(row.type)} · {row.responsibleUser.name}
-                    {row.participants.length
-                      ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
-                      : ""}
-                  </p>
-                  <p className="text-[13px] text-slate">{row.description}</p>
-                </div>
-                {canWrite ? (
-                  <div className="flex items-center gap-1">
-                    <EditVisitButton
-                      compact
-                      facilityId={id}
-                      facilityName={facility.name}
-                      users={userOptions}
-                      currentUserId={user.id}
-                      canWriteReport={hasPermission(user.role, "reports.manage")}
-                      activity={{
-                        id: row.id,
-                        type: row.type,
-                        date: row.date,
-                        startTime: row.startTime,
-                        endTime: row.endTime,
-                        responsibleUserId: row.responsibleUserId,
-                        description: row.description,
-                        findings: row.findings,
-                        participantIds: row.participants.map((participant) => participant.user.id),
-                      }}
-                    />
-                    <DeleteButton compact path={`/api/activities/${row.id}`} />
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Card tint="gold" className="p-5">
+          <h2 className="font-heading mb-3 text-[18px]">Visits</h2>
+          {visits.length === 0 ? (
+            <p className="text-sm text-slate">No visits logged for this facility yet.</p>
+          ) : (
+            <ol className="space-y-3">
+              {visits.map((row) => (
+                <li key={row.id} className="border-l-2 border-gold/50 pl-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[12px] font-mono text-slate">
+                        {formatDateTime(row.startTime || row.date)}
+                        {row.endTime ? ` – ${formatDateTime(row.endTime)}` : ""}
+                      </p>
+                      <p className="text-sm">
+                        {labelActivityType(row.type)} · {row.responsibleUser.name}
+                        {row.participants.length
+                          ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
+                          : ""}
+                      </p>
+                      <p className="text-[13px] text-slate">{row.description}</p>
+                    </div>
+                    {canWrite ? (
+                      <div className="flex items-center gap-1">
+                        <EditVisitButton
+                          compact
+                          facilityId={id}
+                          facilityName={facility.name}
+                          users={userOptions}
+                          currentUserId={user.id}
+                          canWriteReport={hasPermission(user.role, "reports.manage")}
+                          activity={{
+                            id: row.id,
+                            type: row.type,
+                            date: row.date,
+                            startTime: row.startTime,
+                            endTime: row.endTime,
+                            responsibleUserId: row.responsibleUserId,
+                            description: row.description,
+                            findings: row.findings,
+                            participantIds: row.participants.map((participant) => participant.user.id),
+                          }}
+                        />
+                        <DeleteButton compact path={`/api/activities/${row.id}`} />
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Card>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
+        <Card tint="navy" className="p-5">
+          <h2 className="font-heading mb-3 text-[18px]">Activities</h2>
+          {otherActivities.length === 0 ? (
+            <p className="text-sm text-slate">No other activities logged for this facility yet.</p>
+          ) : (
+            <ol className="space-y-3">
+              {otherActivities.map((row) => (
+                <li key={row.id} className="border-l-2 border-brand/40 pl-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[12px] font-mono text-slate">
+                        {formatDateTime(row.startTime || row.date)}
+                        {row.endTime ? ` – ${formatDateTime(row.endTime)}` : ""}
+                      </p>
+                      <p className="text-sm">
+                        {labelActivityType(row.type)} · {row.responsibleUser.name}
+                        {row.participants.length
+                          ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
+                          : ""}
+                      </p>
+                      <p className="text-[13px] text-slate">{row.description}</p>
+                    </div>
+                    {canWrite ? (
+                      <div className="flex items-center gap-1">
+                        <EditVisitButton
+                          compact
+                          facilityId={id}
+                          facilityName={facility.name}
+                          users={userOptions}
+                          currentUserId={user.id}
+                          canWriteReport={hasPermission(user.role, "reports.manage")}
+                          activity={{
+                            id: row.id,
+                            type: row.type,
+                            date: row.date,
+                            startTime: row.startTime,
+                            endTime: row.endTime,
+                            responsibleUserId: row.responsibleUserId,
+                            description: row.description,
+                            findings: row.findings,
+                            participantIds: row.participants.map((participant) => participant.user.id),
+                          }}
+                        />
+                        <DeleteButton compact path={`/api/activities/${row.id}`} />
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
+      </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card className="p-5">

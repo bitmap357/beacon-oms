@@ -13,7 +13,8 @@ import { QaForm } from "@/components/qa-form";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { dateRange, incidentStatusesForFilter, labelIncidentStatus } from "@/lib/incident-status";
+import { dateRange, incidentStatusesForFilter } from "@/lib/incident-status";
+import { IncidentStatusPill } from "@/components/ui/status-pill";
 
 export default async function QAPage({
   searchParams,
@@ -130,7 +131,7 @@ export default async function QAPage({
                     <Link className="text-brand" href={`/incidents/${row.id}`}>
                       {incidentLabel(row)}
                     </Link>
-                    <span className="block text-[12px] text-slate">{labelIncidentStatus(row.status)}</span>
+                    <IncidentStatusPill status={row.status} />
                   </TD>
                   <TD>
                     <Link className="text-brand" href={`/facilities/${row.facilityId}`}>

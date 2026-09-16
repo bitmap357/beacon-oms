@@ -1,6 +1,6 @@
 "use client";
 
-/** Make lead or end an assignment on the facility team list. */
+/** Make lead, make member, or remove a teammate from a facility. */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,21 +21,17 @@ export function AssignmentActions({
   const [endOpen, setEndOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
-  async function makeLead() {
+  async function patch(body: Record<string, unknown>, success: string) {
     try {
-      await apiRequest(
-        `/api/assignments/${assignmentId}`,
-        { isLead: true, updatedAt },
-        "PATCH",
-      );
-      toast.success("Lead updated");
+      await apiRequest(`/api/assignments/${assignmentId}`, { ...body, updatedAt }, "PATCH");
+      toast.success(success);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not change lead");
+      toast.error(error instanceof Error ? error.message : "Could not update assignment");
     }
   }
 
-  async function endAssignment() {
+  async function removeAssignment() {
     setPending(true);
     try {
       await apiRequest(
@@ -43,11 +39,11 @@ export function AssignmentActions({
         { isActive: false, updatedAt },
         "PATCH",
       );
-      toast.success("Assignment ended");
+      toast.success("Removed from team");
       setEndOpen(false);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not end assignment");
+      toast.error(error instanceof Error ? error.message : "Could not remove teammate");
     } finally {
       setPending(false);
     }
@@ -55,23 +51,37 @@ export function AssignmentActions({
 
   return (
     <span className="ml-2 inline-flex flex-wrap items-center gap-1">
-      {isLead ? null : (
-        <Button type="button" size="sm" variant="secondary" onClick={() => void makeLead()}>
+      {isLead ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => void patch({ isLead: false }, "Now a team member")}
+        >
+          Make member
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => void patch({ isLead: true }, "Now the lead")}
+        >
           Make lead
         </Button>
       )}
       <Button type="button" size="sm" variant="secondary" onClick={() => setEndOpen(true)}>
-        End
+        Remove from team
       </Button>
       <ConfirmDialog
         open={endOpen}
         onOpenChange={setEndOpen}
-        title="End this assignment?"
-        description="The person stays in history but is no longer on the active team. You can assign them again later."
-        confirmLabel="End assignment"
+        title="Remove this person from the team?"
+        description="They stay in assignment history but are no longer on the active team. You can assign them again later."
+        confirmLabel="Remove from team"
         danger
         pending={pending}
-        onConfirm={endAssignment}
+        onConfirm={removeAssignment}
       />
     </span>
   );

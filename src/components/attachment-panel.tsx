@@ -30,8 +30,9 @@ export function AttachmentPanel({
     formData.set("relatedType", relatedType);
     formData.set("relatedId", relatedId);
     try {
-      const res = await fetch("/api/attachments", { method: "POST", body: formData });
+      const res = await fetch("/api/attachments", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error("Session expired. Sign in again.");
       if (!res.ok) throw new Error(data.error || "Upload failed");
       toast.success("File attached");
       router.refresh();
