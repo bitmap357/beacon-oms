@@ -3,7 +3,7 @@ import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { IncidentForm, IncidentImportForm } from "@/components/incident-forms";
 import { IncidentInbox } from "@/components/incident-row";
 import { IncidentFilters } from "@/components/incident-filters";
@@ -107,15 +107,8 @@ export default async function IncidentsPage({
           }))}
         />
       )}
-      <details
-        className="mt-6 rounded-2xl border border-hairline bg-surface-raised p-5"
-        open={query.add === "1"}
-      >
-        <summary className="font-heading flex cursor-pointer list-none items-center gap-2 text-[16px] md:text-[18px]">
-          <Plus className="h-4 w-4 text-brand" />
-          Add incidents
-        </summary>
-        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+      <CollapsibleSection title="Add incidents" defaultOpen={query.add === "1"} className="mt-6 mb-0">
+        <div className="grid gap-4 xl:grid-cols-2">
           <div>
             <h2 className="font-heading mb-3 flex items-center gap-2 text-[16px]">
               <Plus className="h-4 w-4 text-brand" />
@@ -136,7 +129,7 @@ export default async function IncidentsPage({
             <IncidentImportForm facilities={facilities} facilityId={query.facilityId} />
           </div>
         </div>
-      </details>
+      </CollapsibleSection>
     </div>
   );
 }

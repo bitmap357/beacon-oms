@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
 import { formatDateTime, formatRole } from "@/lib/utils";
@@ -23,7 +23,7 @@ export default async function UsersAdminPage() {
         illustration="/brand/illustrations/page-users.png"
       />
       {canManage ? (
-        <Card className="mb-6 p-5">
+        <CollapsibleSection title="Create user">
           <p className="mb-3 text-[12px] text-slate">{CREDENTIAL_HINT}</p>
           <SimpleForm
             action="/api/users"
@@ -45,7 +45,7 @@ export default async function UsersAdminPage() {
               { name: "password", label: "Temporary password", type: "password", required: true },
             ]}
           />
-        </Card>
+        </CollapsibleSection>
       ) : null}
       <Card>
         <Table>

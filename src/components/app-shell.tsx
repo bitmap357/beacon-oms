@@ -83,7 +83,7 @@ export function AppShell({
     <div className="min-h-screen bg-surface">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2.5rem))] flex-col border-r border-hairline bg-surface-raised p-5 pt-[max(1.25rem,env(safe-area-inset-top))] transition-transform",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2.5rem))] flex-col border-r border-hairline bg-surface-raised p-5 pt-[max(1.25rem,env(safe-area-inset-top))] transition-transform lg:w-72",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
@@ -115,7 +115,7 @@ export function AppShell({
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px]",
+                  "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] lg:min-h-10 lg:py-2 lg:text-[14px]",
                   active
                     ? "bg-brand/10 text-brand-deep shadow-[inset_3px_0_0_0_var(--gold)]"
                     : "text-ink hover:bg-surface",
@@ -139,8 +139,8 @@ export function AppShell({
           aria-label="Close navigation"
         />
       ) : null}
-      <div className="flex min-h-screen min-w-0 flex-col lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-hairline bg-surface-raised/95 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur sm:gap-3 sm:px-4 sm:py-3">
+      <div className="flex min-h-screen min-w-0 flex-col lg:pl-72">
+        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-hairline bg-surface-raised/95 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur sm:gap-3 sm:px-4 sm:py-3 lg:gap-4 lg:px-8">
           <Button
             variant="ghost"
             size="icon"
@@ -151,16 +151,16 @@ export function AppShell({
           >
             <Menu className="h-4 w-4" />
           </Button>
-          <form action="/search" className="relative min-w-0 flex-1">
+          <form action="/search" className="relative min-w-0 flex-1 lg:min-w-[16rem] lg:max-w-md xl:max-w-lg">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" />
             <input
               name="q"
-              placeholder="Search"
+              placeholder="Search…"
               aria-label="Search facilities, incidents, people"
-              className="h-11 w-full rounded-xl border border-hairline bg-surface px-4 pl-10 text-base text-ink shadow-[inset_0_1px_2px_rgba(28,36,48,0.04)] placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:text-[15px]"
+              className="h-11 w-full rounded-xl border border-hairline bg-surface px-4 pl-10 text-base text-ink shadow-[inset_0_1px_2px_rgba(28,36,48,0.04)] placeholder:text-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:h-10 md:text-[15px]"
             />
           </form>
-          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:gap-3">
             <ThemeToggle />
             <Link
               href="/notifications"
@@ -172,8 +172,8 @@ export function AppShell({
                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold" />
               ) : null}
             </Link>
-            <div className="hidden text-right sm:block">
-              <p className="text-[15px] text-ink">{user.name}</p>
+            <div className="hidden min-w-0 text-right lg:block">
+              <p className="truncate text-[14px] text-ink">{user.name}</p>
               <p className="text-[12px] text-slate">{formatRole(user.role)}</p>
             </div>
             <form action="/api/auth/logout" method="post">
@@ -183,7 +183,7 @@ export function AppShell({
             </form>
           </div>
         </header>
-        <main className="min-w-0 flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-7">{children}</main>
+        <main className="min-w-0 flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>
   );

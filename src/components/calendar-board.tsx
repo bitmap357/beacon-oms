@@ -402,9 +402,9 @@ export function CalendarBoard({
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
             <Button variant="secondary" size="icon" onClick={() => go(-1)} aria-label={view === "week" ? "Previous week" : "Previous month"}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -412,20 +412,21 @@ export function CalendarBoard({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <h2 className="font-heading min-w-0 flex-1 text-[16px] sm:text-[20px]">{title}</h2>
+          <h2 className="font-heading min-w-0 truncate text-[18px] lg:text-[20px]">{title}</h2>
           <Button
             variant="secondary"
+            className="shrink-0"
             onClick={() => router.push(monthQuery(new Date(), view, isoDate(new Date())))}
           >
             Today
           </Button>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <label className="flex min-w-0 items-center gap-2 text-[14px] text-slate">
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+          <label className="flex shrink-0 items-center gap-2 text-[14px] text-slate">
             Go to
             <Input
               type="date"
-              className="w-full min-w-0 sm:w-auto"
+              className="w-[10.5rem]"
               value={focusDay || isoDate(new Date(year, month, 1))}
               onChange={(event) => {
                 const value = event.target.value;
@@ -436,40 +437,40 @@ export function CalendarBoard({
               aria-label="Jump to a date"
             />
           </label>
-          <div className="flex flex-wrap gap-2 sm:ml-auto">
-            <Button
-              variant={view === "month" ? "default" : "secondary"}
-              onClick={() =>
-                router.push(
-                  monthQuery(
-                    focusDay ? new Date(`${focusDay}T00:00:00`) : new Date(year, month, 1),
-                    "month",
-                    focusDay,
-                  ),
-                )
-              }
-            >
-              Month
-            </Button>
-            <Button
-              variant={view === "week" ? "default" : "secondary"}
-              onClick={() =>
-                router.push(
-                  monthQuery(
-                    focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart,
-                    "week",
-                    focusDay || isoDate(weekStart),
-                  ),
-                )
-              }
-            >
-              Week
-            </Button>
-            <Button className="flex-1 sm:flex-none" onClick={() => setSelectedDate(focusDay || isoDate(new Date()))}>
-              <Plus className="h-4 w-4" />
-              Log visit
-            </Button>
-          </div>
+          <Button
+            variant={view === "month" ? "default" : "secondary"}
+            className="shrink-0"
+            onClick={() =>
+              router.push(
+                monthQuery(
+                  focusDay ? new Date(`${focusDay}T00:00:00`) : new Date(year, month, 1),
+                  "month",
+                  focusDay,
+                ),
+              )
+            }
+          >
+            Month
+          </Button>
+          <Button
+            variant={view === "week" ? "default" : "secondary"}
+            className="shrink-0"
+            onClick={() =>
+              router.push(
+                monthQuery(
+                  focusDay ? new Date(`${focusDay}T00:00:00`) : weekStart,
+                  "week",
+                  focusDay || isoDate(weekStart),
+                ),
+              )
+            }
+          >
+            Week
+          </Button>
+          <Button className="shrink-0" onClick={() => setSelectedDate(focusDay || isoDate(new Date()))}>
+            <Plus className="h-4 w-4" />
+            Log visit
+          </Button>
         </div>
       </div>
       <ul className="mb-3 flex flex-wrap gap-4 text-[12px] text-slate">

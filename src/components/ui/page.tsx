@@ -1,4 +1,5 @@
 /** PageHeader + EmptyState used at the top of dashboard screens. */
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function EmptyState({
@@ -28,27 +29,53 @@ export function PageHeader({
   illustration?: string;
 }) {
   return (
-    <div className="mb-5 overflow-hidden rounded-2xl border border-hairline bg-surface-raised md:mb-6">
-      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between md:px-5 md:py-4">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="mb-6 border-b border-hairline pb-5 lg:mb-8 lg:pb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
           {illustration ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={illustration}
               alt=""
-              className="h-14 w-14 shrink-0 object-contain sm:h-20 sm:w-20 md:h-28 md:w-28"
+              aria-hidden
+              className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
             />
           ) : null}
           <div className="min-w-0">
-            <h1 className="font-heading break-words text-[22px] leading-tight text-ink md:text-[28px]">{title}</h1>
+            <h1 className="font-heading text-[22px] leading-tight text-ink lg:text-[28px]">{title}</h1>
             {description ? (
-              <p className="mt-1 max-w-2xl text-[13px] text-slate md:text-[14px]">{description}</p>
+              <p className="mt-1 max-w-2xl text-[13px] leading-snug text-slate md:text-[14px]">{description}</p>
             ) : null}
           </div>
         </div>
-        {actions ? <div className="w-full shrink-0 sm:w-auto">{actions}</div> : null}
+        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
     </div>
+  );
+}
+
+export function CollapsibleSection({
+  title,
+  children,
+  className,
+  defaultOpen,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      className={cn("group mb-6 rounded-2xl border border-hairline bg-surface-raised p-5", className)}
+      open={defaultOpen || undefined}
+    >
+      <summary className="font-heading flex cursor-pointer list-none items-center justify-between gap-3 text-[16px] md:text-[18px] [&::-webkit-details-marker]:hidden">
+        {title}
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
   );
 }
 

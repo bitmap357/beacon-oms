@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { GenerateReportForm } from "@/components/forms";
 import { formatDate, labelize } from "@/lib/utils";
@@ -47,14 +47,13 @@ export default async function ReportsPage({
         illustration="/brand/illustrations/page-reports.png"
         actions={<ScopeFilter />}
       />
-      <Card className="mb-6 p-5">
-        <h2 className="font-heading mb-3 text-[18px]">Generate from incidents & actions</h2>
+      <CollapsibleSection title="Generate from incidents & actions">
         <p className="mb-3 text-[13px] text-slate">
           Beacon summarizes the incidents and follow-up actions in the selected window for a facility
           (and optional branch).
         </p>
         <GenerateReportForm facilities={facilities} />
-      </Card>
+      </CollapsibleSection>
       {reports.length === 0 ? (
         <IllustratedEmpty
           title="No reports in this view yet. Generate one above."
@@ -111,6 +110,7 @@ export default async function ReportsPage({
                 <TD>
                   {canManage ? (
                     <EditDeleteControls
+                      compact
                       path={`/api/reports/${row.id}`}
                       fields={[
                         {

@@ -20,8 +20,8 @@ export function IncidentFilters() {
   }
 
   return (
-    <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
-      <div className="min-w-0 sm:min-w-40">
+    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-raised p-4 lg:flex-row lg:flex-wrap lg:items-end lg:gap-4">
+      <div className="min-w-0 lg:w-44">
         <Label>Status</Label>
         <Select
           value={params.get("status") || ""}
@@ -37,7 +37,7 @@ export function IncidentFilters() {
           ))}
         </Select>
       </div>
-      <div className="min-w-0 sm:min-w-36">
+      <div className="min-w-0 lg:w-40">
         <Label>Priority</Label>
         <Select
           value={params.get("priority") || ""}
@@ -52,7 +52,7 @@ export function IncidentFilters() {
           ))}
         </Select>
       </div>
-      <label className="mb-1 flex min-h-10 items-center gap-2 text-sm">
+      <label className="flex min-h-10 items-center gap-2 text-sm lg:mb-1">
         <input
           type="checkbox"
           className="h-4 w-4 accent-brand"

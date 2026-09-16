@@ -39,17 +39,6 @@ export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
       series.labels.template.set("forceHidden", true);
       series.ticks.template.set("forceHidden", true);
       series.data.setAll(data);
-      const legend = chart.children.push(
-        am5.Legend.new(root, {
-          centerX: am5.percent(50),
-          x: am5.percent(50),
-          marginTop: 12,
-          layout: root.gridLayout,
-        }),
-      );
-      legend.labels.template.setAll({ fontSize: 12 });
-      legend.valueLabels.template.set("forceHidden", true);
-      legend.data.setAll(series.dataItems);
     }
     void run();
     return () => {
@@ -58,7 +47,7 @@ export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
     };
   }, [data, id]);
 
-  return <div id={id} ref={ref} className="h-56 w-full sm:h-80" />;
+  return <div id={id} ref={ref} className="h-48 w-full lg:h-56" />;
 }
 
 export function ChartKey({
@@ -150,7 +139,7 @@ export function ColumnChart({
     };
   }, [data, id, categoryField, valueField]);
 
-  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
+  return <div id={id} ref={ref} className="h-48 w-full lg:h-56" />;
 }
 
 export function LineChart({
@@ -230,7 +219,7 @@ export function LineChart({
     };
   }, [data, id, categoryField, valueField, seriesName]);
 
-  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
+  return <div id={id} ref={ref} className="h-48 w-full lg:h-56" />;
 }
 
 export function HorizontalBarChart({
@@ -299,5 +288,5 @@ export function HorizontalBarChart({
     };
   }, [data, id, categoryField, valueField]);
 
-  return <div id={id} ref={ref} className="h-52 w-full sm:h-72" />;
+  return <div id={id} ref={ref} className="h-48 w-full lg:h-56" />;
 }

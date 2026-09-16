@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
@@ -67,11 +67,12 @@ export default async function ActionsPage({
         illustration="/brand/illustrations/page-actions.png"
         actions={<ScopeFilter includeMine />}
       />
-      <Card className="mb-6 p-5">
-        <SimpleForm
-          action="/api/actions"
-          submitLabel="Create action"
-          fields={[
+      {canManage ? (
+        <CollapsibleSection title="Create action">
+          <SimpleForm
+            action="/api/actions"
+            submitLabel="Create action"
+            fields={[
             {
               name: "facilityId",
               label: "Facility",
@@ -106,9 +107,10 @@ export default async function ActionsPage({
             },
             { name: "dueDate", label: "Due date", type: "date", required: true },
             { name: "description", label: "Description", textarea: true },
-          ]}
-        />
-      </Card>
+              ]}
+            />
+        </CollapsibleSection>
+      ) : null}
       {actions.length === 0 ? (
         <IllustratedEmpty
           title="No actions in this view. Create one above, or switch the filter to All."
@@ -156,9 +158,10 @@ export default async function ActionsPage({
                         {overdue ? "Overdue" : labelize(row.status)}
                       </TonePill>
                     </TD>
-                    <TD>
+                    <TD className="whitespace-nowrap">
                       {canManage ? (
                         <EditDeleteControls
+                          compact
                           path={`/api/actions/${row.id}`}
                           fields={[
                             { name: "title", label: "Title", required: true, defaultValue: row.title },

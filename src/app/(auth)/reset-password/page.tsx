@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { resetPasswordAction } from "@/app/(auth)/actions";
 import { CREDENTIAL_HINT } from "@/lib/password";
+import { toast } from "sonner";
 
 function ResetForm() {
   const params = useSearchParams();
@@ -17,8 +18,13 @@ function ResetForm() {
 
   async function onSubmit(formData: FormData) {
     const result = await resetPasswordAction(formData);
-    if (result && "error" in result && result.error) setError(result.error);
-    else setOk(true);
+    if (result && "error" in result && result.error) {
+      setError(result.error);
+      toast.error(result.error);
+    } else {
+      setOk(true);
+      toast.success("Password updated");
+    }
   }
 
   if (ok) {
@@ -60,7 +66,7 @@ export default function ResetPasswordPage() {
         </div>
         <div className="rounded-[16px] border border-hairline bg-surface-raised p-7">
           <h1 className="font-heading mb-4 text-xl text-ink">Choose a new password</h1>
-          <Suspense>
+          <Suspense fallback={<p className="text-sm text-slate">Loading reset form…</p>}>
             <ResetForm />
           </Suspense>
         </div>

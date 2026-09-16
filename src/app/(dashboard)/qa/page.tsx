@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
@@ -43,13 +43,13 @@ export default async function QAPage({
         illustration="/brand/illustrations/page-qa.png"
         actions={<ScopeFilter />}
       />
-      <Card className="mb-6 p-5">
+      <CollapsibleSection title="Record QA" defaultOpen={Boolean(incidentId)}>
         <QaForm
           facilities={facilities}
           incidents={incidents}
           defaultIncidentId={incidentId}
         />
-      </Card>
+      </CollapsibleSection>
       {records.length === 0 ? (
         <IllustratedEmpty
           title="No QA records yet. Record a verification above."
@@ -81,6 +81,7 @@ export default async function QAPage({
                   <TD>
                     {canManage ? (
                       <EditDeleteControls
+                        compact
                         path={`/api/qa-records/${row.id}`}
                         fields={[
                           {

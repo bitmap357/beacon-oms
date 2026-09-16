@@ -4,7 +4,6 @@
  */
 import Link from "next/link";
 import { Card, MetricCard } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page";
 import { StatusPill, TonePill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart, DonutChart, HorizontalBarChart, LineChart, ChartKey } from "@/components/charts";
@@ -267,53 +266,54 @@ export default async function DashboardPage({
 
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        description="Operational picture for Spagad facilities, incidents, actions, and reports."
-        actions={<ScopeFilter />}
-      />
-      <Card className="mb-6 overflow-hidden bg-brand/5">
-        <div className="grid items-center gap-4 p-5 md:grid-cols-[1fr_280px]">
-          <div>
-            <p className="font-heading text-[22px] text-ink md:text-[28px]">{greetingFor(user.name)}</p>
-            <p className="mt-2 max-w-xl text-sm text-slate">{insights[0]}</p>
-            <p className="mt-1 max-w-xl text-sm text-slate">{insights[1]}</p>
-          </div>
+      <div className="mb-8 flex flex-col gap-5 border-b border-hairline pb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+        <div className="min-w-0">
+          <p className="text-[12px] font-medium uppercase tracking-wide text-slate">Dashboard</p>
+          <h1 className="font-heading mt-1 text-[26px] leading-tight text-ink lg:text-[32px]">
+            {greetingFor(user.name)}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate">{insights[0]}</p>
+          <p className="mt-1 max-w-2xl text-sm text-slate">{insights[1]}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-5">
+          <ScopeFilter />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/illustrations/hero.png"
-            alt=""
-            className="mx-auto h-32 w-full max-w-xs object-contain md:h-48"
+            alt="Beacon operations overview illustration"
+            className="hidden h-20 w-32 object-contain xl:block"
           />
         </div>
-      </Card>
-      <Card className="mb-6 p-5">
-        <h2 className="font-heading mb-2 text-[18px]">What needs attention</h2>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-ink">
-          {insights.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <p className="mt-3 text-[13px] text-slate">
-          Organization → facility → optional branch → incidents → required actions → reports for a date range.
-        </p>
-      </Card>
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Facilities" value={totalFacilities} href="/facilities" icon={Building2} />
-        <MetricCard label="Branches" value={branchCount} href="/facilities" icon={GitBranch} />
-        <MetricCard label="Active facilities" value={activeFacilities} href="/facilities" icon={HeartPulse} />
-        <MetricCard label="Requiring attention" value={attention} href="/facilities?status=attention" icon={AlertTriangle} />
-        <MetricCard label="Open incidents" value={openIncidents} href="/incidents?status=open" icon={Siren} />
-        <MetricCard label="Critical open" value={criticalIncidents} href="/incidents?status=open&priority=CRITICAL" icon={CircleAlert} />
-        <MetricCard label="Overdue actions" value={overdueActions} href="/actions?overdue=1" icon={ClipboardCheck} />
-        <MetricCard label="Incidents without actions" value={incidentsWithoutActions} href="/incidents?withoutActions=1" icon={CircleAlert} />
-        <MetricCard label="Activities this week" value={activitiesThisWeek} href="/calendar" icon={CalendarDays} />
-        <MetricCard label="Visits due" value={visits.length} href="/calendar" icon={MapPin} />
-        <MetricCard label="Pending QA" value={pendingQa} href="/qa" icon={ShieldCheck} />
-        <MetricCard label="Reports this month" value={reportsThisMonth} href="/reports" icon={FileText} />
       </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="p-5">
+      <section className="mb-5">
+        <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Facilities</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricCard label="Facilities" value={totalFacilities} href="/facilities" icon={Building2} />
+          <MetricCard label="Branches" value={branchCount} href="/facilities" icon={GitBranch} />
+          <MetricCard label="Active" value={activeFacilities} href="/facilities" icon={HeartPulse} />
+          <MetricCard label="Needs attention" value={attention} href="/facilities?status=attention" icon={AlertTriangle} />
+        </div>
+      </section>
+      <section className="mb-5">
+        <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Incidents and actions</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricCard label="Open incidents" value={openIncidents} href="/incidents?status=open" icon={Siren} />
+          <MetricCard label="Critical open" value={criticalIncidents} href="/incidents?status=open&priority=CRITICAL" icon={CircleAlert} />
+          <MetricCard label="Overdue actions" value={overdueActions} href="/actions?overdue=1" icon={ClipboardCheck} />
+          <MetricCard label="No follow-up" value={incidentsWithoutActions} href="/incidents?withoutActions=1" icon={CircleAlert} />
+        </div>
+      </section>
+      <section className="mb-8">
+        <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Activity</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricCard label="Activities this week" value={activitiesThisWeek} href="/calendar" icon={CalendarDays} />
+          <MetricCard label="Visits due" value={visits.length} href="/calendar" icon={MapPin} />
+          <MetricCard label="Pending QA" value={pendingQa} href="/qa" icon={ShieldCheck} />
+          <MetricCard label="Reports this month" value={reportsThisMonth} href="/reports" icon={FileText} />
+        </div>
+      </section>
+      <div className="grid gap-4 xl:grid-cols-3 xl:gap-6">
+        <Card className="p-5 xl:col-span-2">
           <h2 className="font-heading mb-3 text-[18px]">Incidents opened (12 weeks)</h2>
           <LineChart
             id="incidents-trend"
@@ -372,19 +372,6 @@ export default async function DashboardPage({
           <ChartKey items={[{ label: "Open incidents", color: "#1558D6" }]} />
         </Card>
         <Card className="p-5">
-          <h2 className="font-heading mb-3 text-[18px]">Open incidents by facility</h2>
-          <HorizontalBarChart
-            id="incidents-facility"
-            categoryField="facility"
-            valueField="count"
-            data={facilities.map((row) => ({
-              facility: row.name,
-              count: row._count.incidents,
-            }))}
-          />
-          <ChartKey items={[{ label: "Open incidents", color: "#1558D6" }]} />
-        </Card>
-        <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Actions by status</h2>
           <DonutChart
             id="action-status"
@@ -401,9 +388,22 @@ export default async function DashboardPage({
             }))}
           />
         </Card>
+        <Card className="p-5 xl:col-span-3">
+          <h2 className="font-heading mb-3 text-[18px]">Open incidents by facility</h2>
+          <HorizontalBarChart
+            id="incidents-facility"
+            categoryField="facility"
+            valueField="count"
+            data={facilities.map((row) => ({
+              facility: row.name,
+              count: row._count.incidents,
+            }))}
+          />
+          <ChartKey items={[{ label: "Open incidents", color: "#1558D6" }]} />
+        </Card>
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card className="p-5">
+      <div className="mt-6 grid gap-4 xl:grid-cols-5 xl:gap-6">
+        <Card className="p-5 xl:col-span-3">
           <h2 className="font-heading mb-3 text-[18px]">High / critical open incidents</h2>
           {openIncidentRows.length === 0 ? (
             <IllustratedEmpty
@@ -442,7 +442,7 @@ export default async function DashboardPage({
             </Table>
           )}
         </Card>
-        <Card className="p-5">
+        <Card className="p-5 xl:col-span-2">
           <h2 className="font-heading mb-3 text-[18px]">Overdue actions</h2>
           {overdueActionRows.length === 0 ? (
             <IllustratedEmpty
@@ -479,7 +479,7 @@ export default async function DashboardPage({
           )}
         </Card>
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+      <div className="mt-6 grid gap-4 xl:grid-cols-2 xl:gap-6">
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Visits due</h2>
           {visits.length === 0 ? (
@@ -536,7 +536,7 @@ export default async function DashboardPage({
           </Table>
         </Card>
       </div>
-      <Card className="mt-4 p-5">
+      <Card className="mt-6 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Team workload</h2>
         <Table>
           <THead>

@@ -55,16 +55,16 @@ export function MetricCard({
   icon?: ComponentType<{ className?: string }>;
 }) {
   const inner = (
-    <Card className={cn("p-4", href && "transition-colors hover:border-brand/40")}>
+    <Card className={cn("h-full p-4", href && "transition-colors hover:border-brand/40")}>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[14px] text-slate">{label}</p>
+        <p className="text-[13px] leading-snug text-slate">{label}</p>
         {Icon ? (
           <span className="rounded-xl bg-brand/10 p-2 text-brand">
             <Icon className="h-4 w-4" />
           </span>
         ) : null}
       </div>
-      <p className="font-heading mt-1 text-[22px] text-ink">{value}</p>
+      <p className="font-heading mt-2 text-[22px] leading-none text-ink lg:text-[26px]">{value}</p>
     </Card>
   );
   if (!href) return inner;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -54,10 +54,9 @@ export default async function FacilitiesPage({
         actions={<ScopeFilter />}
       />
       {hasPermission(user.role, "facilities.manage") ? (
-        <Card className="mb-6 p-5">
-          <h2 className="font-heading mb-3 text-[18px]">Add facility</h2>
+        <CollapsibleSection title="Add facility">
           <FacilityForm organizations={organizations} />
-        </Card>
+        </CollapsibleSection>
       ) : null}
       {facilities.length === 0 ? (
         <IllustratedEmpty
@@ -97,7 +96,7 @@ export default async function FacilitiesPage({
                       : "—"}
                   </TD>
                   <TD>{row.assignments[0]?.user.name || "—"}</TD>
-                  <TD className="text-[13px]">
+                  <TD className="whitespace-nowrap text-[13px]">
                     <Link className="text-brand" href={`/incidents?facilityId=${row.id}`}>
                       {row._count.incidents} incidents
                     </Link>

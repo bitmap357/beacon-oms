@@ -76,7 +76,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full bg-surface font-sans text-ink">
         {children}
-        <Toaster position="top-center" offset={12} mobileOffset={12} />
+        <Toaster
+          position="top-center"
+          offset={16}
+          mobileOffset={12}
+          toastOptions={{
+            classNames: {
+              toast:
+                "border border-hairline bg-surface-raised text-ink shadow-[0_12px_40px_rgba(12,20,36,0.12)]",
+              title: "text-ink",
+              description: "text-slate",
+              success: "border-l-4 border-l-[#1D6B45]",
+              error: "border-l-4 border-l-[#791F1F]",
+              actionButton: "bg-brand text-white",
+              cancelButton: "bg-surface text-ink",
+            },
+          }}
+        />
       </body>
     </html>
   );

@@ -92,6 +92,7 @@ export function SimpleForm({
   fields,
   submitLabel,
   method = "POST",
+  onSuccess,
 }: {
   action: string;
   fields: Array<{
@@ -105,6 +106,7 @@ export function SimpleForm({
   }>;
   submitLabel: string;
   method?: string;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   async function onSubmit(formData: FormData) {
@@ -124,6 +126,7 @@ export function SimpleForm({
       }
       await apiRequest(action, body, method);
       toast.success("Saved");
+      onSuccess?.();
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save");

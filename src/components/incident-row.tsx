@@ -168,20 +168,36 @@ export function IncidentRow({
     labelIncidentStatus(incident.status)
   );
 
+  const compact = variant === "row";
   const actionButtons = (
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="secondary" size="sm" onClick={() => setCommenting((value) => !value)}>
+    <div className={compact ? "flex items-center justify-end gap-1" : "flex flex-wrap gap-2"}>
+      <Button
+        type="button"
+        variant="secondary"
+        size={compact ? "icon" : "sm"}
+        className={compact ? "h-7 w-7" : undefined}
+        onClick={() => setCommenting((value) => !value)}
+        aria-label={commenting ? "Close comment" : "Comment"}
+      >
         <MessageSquare className="h-3.5 w-3.5" />
-        {commenting ? "Close" : "Comment"}
+        {compact ? null : commenting ? "Close" : "Comment"}
       </Button>
       {canAddAction ? (
-        <Button type="button" variant="secondary" size="sm" onClick={() => setAdding((value) => !value)}>
+        <Button
+          type="button"
+          variant="secondary"
+          size={compact ? "icon" : "sm"}
+          className={compact ? "h-7 w-7" : undefined}
+          onClick={() => setAdding((value) => !value)}
+          aria-label={adding ? "Close add action" : "Add action"}
+        >
           <Plus className="h-3.5 w-3.5" />
-          {adding ? "Close" : "Add action"}
+          {compact ? null : adding ? "Close" : "Add action"}
         </Button>
       ) : null}
       {canManage ? (
         <EditDeleteControls
+          compact={compact}
           path={`/api/incidents/${incident.id}`}
           fields={[
             {
@@ -319,7 +335,7 @@ export function IncidentRow({
         </TD>
         <TD>{incident.assigneeName || "—"}</TD>
         <TD className="font-mono text-[12px]">{formatDate(incident.reportedAt)}</TD>
-        <TD>{actionButtons}</TD>
+        <TD className="whitespace-nowrap text-right">{actionButtons}</TD>
       </TR>
       {commentForm ? (
         <TR>

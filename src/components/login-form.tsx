@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { loginAction } from "@/app/(auth)/actions";
+import { toast } from "sonner";
 
 export function LoginPanel() {
   const params = useSearchParams();
@@ -19,7 +20,10 @@ export function LoginPanel() {
     setError(null);
     const result = await loginAction(formData);
     setPending(false);
-    if (result?.error) setError(result.error);
+    if (result?.error) {
+      setError(result.error);
+      toast.error(result.error);
+    }
   }
 
   return (
@@ -32,7 +36,7 @@ export function LoginPanel() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/signin-panel.png"
-            alt=""
+            alt="Clinicians at a hospital operations desk using Beacon to track facilities, incidents, and visits"
             className="absolute inset-0 h-full w-full object-cover object-[center_35%]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-[#070b14]/30 to-black/15" />

@@ -8,12 +8,15 @@ import { Input, Label } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
 import { StatusPill } from "@/components/ui/status-pill";
+import { EditDeleteControls } from "@/components/record-actions";
 
 export function OrganizationTree({
-  canManage,
+  canManageOrgs,
+  canManageFacilities,
   organizations,
 }: {
-  canManage: boolean;
+  canManageOrgs: boolean;
+  canManageFacilities: boolean;
   organizations: Array<{
     id: string;
     name: string;
@@ -22,6 +25,7 @@ export function OrganizationTree({
       name: string;
       location: string | null;
       status: string;
+      updatedAt: Date | string;
       branches: Array<{ id: string; name: string; location: string | null }>;
       _count: { incidents: number; actions: number; reports: number };
     }>;
@@ -68,7 +72,7 @@ export function OrganizationTree({
 
   return (
     <div className="space-y-6">
-      {canManage ? (
+      {canManageOrgs ? (
         <form action={addOrganization} className="flex flex-wrap items-end gap-3">
           <div className="min-w-56 flex-1">
             <Label>New organization</Label>
@@ -85,12 +89,22 @@ export function OrganizationTree({
               <h2 className="font-heading text-[20px] text-ink">{org.name}</h2>
               <p className="text-[13px] text-slate">
                 {org.facilities.length} facilit{org.facilities.length === 1 ? "y" : "ies"} ·
-                incidents, actions, and reports hang off facilities and optional branches
+                name is on the organization; location lives on each facility and branch
               </p>
             </div>
+            {canManageOrgs ? (
+              <EditDeleteControls
+                path={`/api/client-organizations/${org.id}`}
+                canDelete={false}
+                title="Edit name"
+                fields={[
+                  { name: "name", label: "Organization name", required: true, defaultValue: org.name },
+                ]}
+              />
+            ) : null}
           </div>
 
-          {canManage ? (
+          {canManageFacilities ? (
             <form
               action={(formData) => addFacility(org.id, formData)}
               className="mb-5 grid gap-3 rounded-[10px] bg-surface p-3 md:grid-cols-3"
@@ -101,7 +115,7 @@ export function OrganizationTree({
               </div>
               <div>
                 <Label>Location</Label>
-                <Input name="location" />
+                <Input name="location" placeholder="City, campus, or site" />
               </div>
               <div className="flex items-end">
                 <Button>Add facility</Button>
@@ -122,7 +136,29 @@ export function OrganizationTree({
                       </Link>
                       <p className="text-[12px] text-slate">{facility.location || "No location set"}</p>
                     </div>
-                    <StatusPill status={facility.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={facility.status} />
+                      {canManageFacilities ? (
+                        <EditDeleteControls
+                          path={`/api/facilities/${facility.id}`}
+                          canDelete={false}
+                          title="Edit facility"
+                          fields={[
+                            { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
+                            { name: "location", label: "Location", defaultValue: facility.location || "" },
+                            {
+                              name: "updatedAt",
+                              label: "Current timestamp",
+                              type: "hidden",
+                              defaultValue:
+                                typeof facility.updatedAt === "string"
+                                  ? facility.updatedAt
+                                  : facility.updatedAt.toISOString(),
+                            },
+                          ]}
+                        />
+                      ) : null}
+                    </div>
                   </div>
                   <p className="mt-2 text-[13px] text-slate">
                     <Link className="text-brand" href={`/incidents?facilityId=${facility.id}`}>
@@ -137,21 +173,36 @@ export function OrganizationTree({
                       {facility._count.reports} report{facility._count.reports === 1 ? "" : "s"}
                     </Link>
                   </p>
-                  <ul className="mt-3 space-y-1 text-sm">
+                  <ul className="mt-3 space-y-2 text-sm">
                     {facility.branches.length === 0 ? (
                       <li className="text-slate">No branches — incidents apply to the whole facility.</li>
                     ) : (
                       facility.branches.map((branch) => (
-                        <li key={branch.id}>
-                          <span className="text-ink">{branch.name}</span>
-                          {branch.location ? (
-                            <span className="text-slate"> · {branch.location}</span>
+                        <li key={branch.id} className="flex flex-wrap items-center justify-between gap-2">
+                          <span>
+                            <span className="text-ink">{branch.name}</span>
+                            {branch.location ? (
+                              <span className="text-slate"> · {branch.location}</span>
+                            ) : (
+                              <span className="text-slate"> · No location set</span>
+                            )}
+                          </span>
+                          {canManageFacilities ? (
+                            <EditDeleteControls
+                              compact
+                              path={`/api/facilities/${facility.id}/branches/${branch.id}`}
+                              title="Edit branch"
+                              fields={[
+                                { name: "name", label: "Branch name", required: true, defaultValue: branch.name },
+                                { name: "location", label: "Location", defaultValue: branch.location || "" },
+                              ]}
+                            />
                           ) : null}
                         </li>
                       ))
                     )}
                   </ul>
-                  {canManage ? (
+                  {canManageFacilities ? (
                     <form
                       action={(formData) => addBranch(facility.id, formData)}
                       className="mt-3 grid gap-3 md:grid-cols-3"

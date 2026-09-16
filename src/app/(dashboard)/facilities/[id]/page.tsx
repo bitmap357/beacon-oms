@@ -156,6 +156,26 @@ export default async function FacilityDetailPage({
               <dd className="font-mono text-[12px]">{formatDate(facility.createdAt)}</dd>
             </div>
           </dl>
+          {hasPermission(user.role, "facilities.manage") ? (
+            <div className="mt-4">
+              <EditDeleteControls
+                path={`/api/facilities/${id}`}
+                canDelete={false}
+                title="Edit name and location"
+                fields={[
+                  { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
+                  { name: "location", label: "Location", defaultValue: facility.location || "" },
+                  { name: "contactInfo", label: "Contact", defaultValue: facility.contactInfo || "" },
+                  {
+                    name: "updatedAt",
+                    label: "Current timestamp",
+                    type: "hidden",
+                    defaultValue: facility.updatedAt.toISOString(),
+                  },
+                ]}
+              />
+            </div>
+          ) : null}
           <h3 className="font-heading mt-5 mb-2 text-[18px]">Current team</h3>
           <ul className="space-y-1 text-sm">
             {facility.assignments
@@ -226,6 +246,7 @@ export default async function FacilityDetailPage({
                   <div className="mt-2">
                     <EditDeleteControls
                       path={`/api/facilities/${id}/branches/${branch.id}`}
+                      title="Edit branch"
                       fields={[
                         { name: "name", label: "Branch name", required: true, defaultValue: branch.name },
                         { name: "location", label: "Location", defaultValue: branch.location || "" },

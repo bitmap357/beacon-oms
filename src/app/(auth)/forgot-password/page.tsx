@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { forgotPasswordAction } from "@/app/(auth)/actions";
+import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
   const [done, setDone] = useState(false);
@@ -14,6 +15,7 @@ export default function ForgotPasswordPage() {
   async function onSubmit(formData: FormData) {
     await forgotPasswordAction(formData);
     setDone(true);
+    toast.success("If that email is registered, a reset link is on its way.");
   }
 
   return (

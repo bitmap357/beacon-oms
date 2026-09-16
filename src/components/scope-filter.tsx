@@ -29,19 +29,25 @@ export function ScopeFilter({ includeMine = false }: { includeMine?: boolean }) 
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant={current === "all" ? "default" : "secondary"} onClick={() => setMode("all")}>
+    <div className="flex flex-nowrap gap-2">
+      <Button size="sm" className="whitespace-nowrap" variant={current === "all" ? "default" : "secondary"} onClick={() => setMode("all")}>
         All
       </Button>
       <Button
         size="sm"
+        className="whitespace-nowrap"
         variant={current === "assigned" ? "default" : "secondary"}
         onClick={() => setMode("assigned")}
       >
         My facilities
       </Button>
       {includeMine ? (
-        <Button size="sm" variant={current === "mine" ? "default" : "secondary"} onClick={() => setMode("mine")}>
+        <Button
+          size="sm"
+          className="whitespace-nowrap"
+          variant={current === "mine" ? "default" : "secondary"}
+          onClick={() => setMode("mine")}
+        >
           Assigned to me
         </Button>
       ) : null}

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/session";
 import { assertPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/page";
 import { OrganizationTree } from "@/components/org-tree";
+import { hasPermission } from "@/lib/permissions";
 
 export default async function OrganizationsPage() {
   const user = await requireUser();
@@ -25,11 +26,12 @@ export default async function OrganizationsPage() {
     <div>
       <PageHeader
         title="Organizations"
-        description="Spagad owns facilities. Facilities optionally have branches. Incidents, actions, and reports hang off that tree."
+        description="Rename an organization here. Site address lives on each facility and branch, not on the organization."
         illustration="/brand/illustrations/page-organizations.png"
       />
       <OrganizationTree
-        canManage={user.role === "ADMIN"}
+        canManageOrgs={hasPermission(user.role, "orgs.manage")}
+        canManageFacilities={hasPermission(user.role, "facilities.manage")}
         organizations={organizations}
       />
     </div>
