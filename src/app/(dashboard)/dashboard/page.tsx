@@ -69,7 +69,15 @@ function greetingFor(name: string) {
   const hour = new Date().getHours();
   const hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const first = name.split(" ")[0] || name;
-  return `${hello}, ${first}.`;
+  return { hello, first };
+}
+
+function todayLabel(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(date);
 }
 
 export default async function DashboardPage({
@@ -264,27 +272,36 @@ export default async function DashboardPage({
     }),
   );
 
+  const { hello, first } = greetingFor(user.name);
+
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-5 border-b border-hairline pb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-        <div className="min-w-0">
-          <p className="text-[12px] font-medium uppercase tracking-wide text-slate">Dashboard</p>
-          <h1 className="font-heading mt-1 text-[26px] leading-tight text-ink lg:text-[32px]">
-            {greetingFor(user.name)}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate">{insights[0]}</p>
-          <p className="mt-1 max-w-2xl text-sm text-slate">{insights[1]}</p>
+      <section className="mb-8 overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,32rem)]">
+          <div className="flex min-w-0 flex-col justify-center px-5 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
+            <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-slate">
+              {todayLabel(now)}
+            </p>
+            <h1 className="font-heading mt-2 text-[28px] leading-[1.15] text-ink sm:text-[32px] lg:text-[40px]">
+              {hello}, <span className="text-brand">{first}</span>.
+            </h1>
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-slate">
+              {insights[0]} {insights[1]}
+            </p>
+            <div className="mt-5">
+              <ScopeFilter />
+            </div>
+          </div>
+          <div className="relative h-44 bg-[#f3eee4] sm:h-52 lg:h-auto lg:min-h-[15.5rem] dark:bg-[#10192c]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/illustrations/hero.png"
+              alt="Beacon operations overview illustration"
+              className="h-full w-full object-cover object-[72%_38%]"
+            />
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-5">
-          <ScopeFilter />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/illustrations/hero.png"
-            alt="Beacon operations overview illustration"
-            className="hidden h-20 w-32 object-contain xl:block"
-          />
-        </div>
-      </div>
+      </section>
       <section className="mb-5">
         <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Facilities</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -29,28 +29,40 @@ export function PageHeader({
   illustration?: string;
 }) {
   return (
-    <div className="mb-6 border-b border-hairline pb-5 lg:mb-8 lg:pb-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-        <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-          {illustration ? (
-            // eslint-disable-next-line @next/next/no-img-element
+    <section className="mb-6 overflow-hidden rounded-2xl border border-hairline bg-surface-raised lg:mb-8">
+      <div
+        className={cn(
+          "grid",
+          illustration &&
+            "lg:grid-cols-[minmax(0,1fr)_minmax(14rem,20rem)] xl:grid-cols-[minmax(0,1fr)_minmax(16rem,24rem)]",
+        )}
+      >
+        <div className="flex min-w-0 flex-col justify-center px-5 py-5 sm:px-7 sm:py-6 lg:px-8 lg:py-7">
+          <h1 className="font-heading min-w-0 text-[26px] leading-[1.2] text-ink sm:text-[30px] lg:text-[34px]">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-slate md:text-[15px]">
+              {description}
+            </p>
+          ) : null}
+          {actions ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">{actions}</div>
+          ) : null}
+        </div>
+        {illustration ? (
+          <div className="relative h-44 min-h-[11rem] bg-[#f3eee4] sm:h-48 lg:h-auto lg:min-h-[16rem] xl:min-h-[17rem] dark:bg-[#10192c]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={illustration}
               alt=""
               aria-hidden
-              className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+              className="absolute inset-0 h-full w-full object-contain object-center p-3 sm:p-4"
             />
-          ) : null}
-          <div className="min-w-0">
-            <h1 className="font-heading text-[22px] leading-tight text-ink lg:text-[28px]">{title}</h1>
-            {description ? (
-              <p className="mt-1 max-w-2xl text-[13px] leading-snug text-slate md:text-[14px]">{description}</p>
-            ) : null}
           </div>
-        </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        ) : null}
       </div>
-    </div>
+    </section>
   );
 }
 
