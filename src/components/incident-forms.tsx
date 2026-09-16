@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
-import { incidentStatusOptions } from "@/lib/incident-status";
-import { labelize } from "@/lib/utils";
+import { incidentStatusOptions, labelIncidentStatus } from "@/lib/incident-status";
 import { Plus, Upload } from "lucide-react";
 
 type FacilityOption = {
@@ -73,7 +72,7 @@ export function IncidentForm({
         <Select name="status" required defaultValue="NEW">
           {statuses.map((status) => (
             <option key={status} value={status}>
-              {labelize(status)}
+              {labelIncidentStatus(status)}
             </option>
           ))}
         </Select>

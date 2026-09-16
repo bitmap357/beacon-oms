@@ -40,7 +40,9 @@ export function FacilityForm({
         name: formData.get("name"),
         clientOrganizationId: formData.get("clientOrganizationId"),
         location: formData.get("location"),
-        contactInfo: formData.get("contactInfo"),
+        contactPerson: formData.get("contactPerson"),
+        contactPhone: formData.get("contactPhone"),
+        contactEmail: formData.get("contactEmail"),
       });
       toast.success("Facility created");
       router.refresh();
@@ -73,9 +75,17 @@ export function FacilityForm({
         <Label>Location</Label>
         <Input name="location" />
       </div>
-      <div className="md:col-span-2">
-        <Label>Contact</Label>
-        <Input name="contactInfo" />
+      <div>
+        <Label>Contact person (optional)</Label>
+        <Input name="contactPerson" placeholder="Name" />
+      </div>
+      <div>
+        <Label>Contact phone (optional)</Label>
+        <Input name="contactPhone" />
+      </div>
+      <div>
+        <Label>Contact email (optional)</Label>
+        <Input name="contactEmail" type="email" />
       </div>
       <div className="md:col-span-2">
         <Button>

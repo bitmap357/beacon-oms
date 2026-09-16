@@ -8,20 +8,53 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { HandoverSnapshot } from "@/components/handover-snapshot";
+import { ListFilters } from "@/components/list-filters";
+import { dateRange } from "@/lib/incident-status";
 
-export default async function HandoversPage() {
+export default async function HandoversPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    facilityId?: string;
+    fromUserId?: string;
+    toUserId?: string;
+    from?: string;
+    to?: string;
+  }>;
+}) {
   const user = await requireUser();
+  const { facilityId, fromUserId, toUserId, from, to } = await searchParams;
   const ids = await getScopedFacilityIds(user);
-  const handovers = await prisma.handover.findMany({
-    where: { facilityId: { in: ids } },
-    include: {
-      facility: true,
-      fromUser: true,
-      toUser: true,
-      initiatedBy: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const scopedIds = facilityId && ids.includes(facilityId) ? [facilityId] : ids;
+  const range = dateRange(from, to);
+  const [handovers, facilities, users] = await Promise.all([
+    prisma.handover.findMany({
+      where: {
+        facilityId: { in: scopedIds },
+        ...(fromUserId ? { fromUserId } : {}),
+        ...(toUserId ? { toUserId } : {}),
+        ...(range ? { createdAt: range } : {}),
+      },
+      include: {
+        facility: true,
+        fromUser: true,
+        toUser: true,
+        initiatedBy: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.facility.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const people = users.map((row) => ({ value: row.id, label: row.name }));
 
   return (
     <div>
@@ -29,6 +62,22 @@ export default async function HandoversPage() {
         title="Handovers"
         description="Start a handover from a facility page so the snapshot of open work is saved with the record."
         illustration="/brand/illustrations/page-handovers.png"
+      />
+      <ListFilters
+        exportPath="/api/export/handovers"
+        fields={[
+          {
+            name: "facilityId",
+            label: "Facility",
+            kind: "select",
+            emptyLabel: "All facilities",
+            options: facilities.map((row) => ({ value: row.id, label: row.name })),
+          },
+          { name: "fromUserId", label: "From", kind: "select", emptyLabel: "Anyone", options: people },
+          { name: "toUserId", label: "To", kind: "select", emptyLabel: "Anyone", options: people },
+          { name: "from", label: "From date", kind: "date" },
+          { name: "to", label: "To date", kind: "date" },
+        ]}
       />
       {handovers.length === 0 ? (
         <IllustratedEmpty

@@ -156,3 +156,44 @@ code,
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+@keyframes beacon-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes beacon-sweep {
+  0% {
+    transform: rotate(-55deg);
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: rotate(55deg);
+    opacity: 0.15;
+  }
+}
+
+.beacon-ring {
+  animation: beacon-ring 2.4s ease-out infinite;
+}
+
+.beacon-ring-delay {
+  animation-delay: 1.2s;
+}
+
+.beacon-sweep {
+  animation: beacon-sweep 2.8s ease-in-out infinite alternate;
+}

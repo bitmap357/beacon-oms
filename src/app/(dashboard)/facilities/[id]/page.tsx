@@ -11,13 +11,14 @@ import { PageHeader } from "@/components/ui/page";
 import { StatusPill, TonePill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
-import { ActivityForm } from "@/components/activity-form";
+import { ActivityForm, EditVisitButton } from "@/components/activity-form";
 import { HandoverSnapshot } from "@/components/handover-snapshot";
 import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from "@/lib/utils";
 import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
 import { DeleteButton, EditDeleteControls } from "@/components/record-actions";
-import { isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
+import { isClosedIncidentStatus, isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
+import { labelActivityType } from "@/lib/activity-types";
 import { Plus } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -57,7 +58,7 @@ export default async function FacilityDetailPage({
       where: { facilityId: id },
       include: {
         responsibleUser: true,
-        participants: { include: { user: { select: { name: true } } } },
+        participants: { include: { user: { select: { id: true, name: true } } } },
       },
       orderBy: { date: "desc" },
     }),
@@ -74,11 +75,24 @@ export default async function FacilityDetailPage({
   ]);
 
   const openIncidents = incidents.filter((row) => isOpenIncidentStatus(row.status));
+  const closedIncidents = incidents.filter((row) => isClosedIncidentStatus(row.status));
   const overdue = actions.filter(
     (row) => row.dueDate < new Date() && isOpenActionStatus(row.status),
   );
-  const lead = facility.assignments.find((row) => row.isActive && row.isLead);
-  const lastVisit = activities.find((row) => row.type === "SITE_VISIT");
+  const activeTeam = facility.assignments.filter((row) => row.isActive);
+  const leadPm = activeTeam.find((row) => row.assignmentType === "PM_QA" && row.isLead);
+  const leadDev = activeTeam.find((row) => row.assignmentType === "DEVELOPER" && row.isLead);
+  const hasPm = activeTeam.some((row) => row.assignmentType === "PM_QA");
+  const hasDev = activeTeam.some((row) => row.assignmentType === "DEVELOPER");
+  const staffingGaps = [
+    !hasPm ? "at least one PM/QA" : null,
+    !hasDev ? "at least one developer" : null,
+    hasPm && !leadPm ? "a Lead PM/QA" : null,
+    hasDev && !leadDev ? "a Lead Developer" : null,
+  ].filter((row): row is string => Boolean(row));
+  const lastVisit = activities[0];
+  const userOptions = users.map((row) => ({ id: row.id, name: row.name }));
+  const canWrite = hasPermission(user.role, "activities.create");
 
   return (
     <div>
@@ -95,6 +109,18 @@ export default async function FacilityDetailPage({
           </div>
         }
       />
+      {staffingGaps.length ? (
+        <div
+          role="status"
+          className="mb-6 rounded-xl border border-[#e8b923] bg-[#e8b923]/20 px-4 py-3 text-sm text-ink"
+        >
+          <p className="font-medium">Staffing needed</p>
+          <p className="mt-1 text-[13px] leading-relaxed">
+            This facility still needs {staffingGaps.join(" and ")}. Every facility should have at least
+            one PM/QA, one developer, a Lead PM/QA, and a Lead Developer.
+          </p>
+        </div>
+      ) : null}
       <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild>
           <Link href={`/incidents/new?facilityId=${id}`}>
@@ -110,14 +136,10 @@ export default async function FacilityDetailPage({
         </Button>
       </div>
       <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Lead PM/QA" value={lead?.user.name || "Unassigned"} />
+        <MetricCard label="Lead PM/QA" value={leadPm?.user.name || "Unassigned"} />
+        <MetricCard label="Lead Developer" value={leadDev?.user.name || "Unassigned"} />
         <MetricCard label="Open incidents" value={openIncidents.length} href={`/incidents?facilityId=${id}&status=open`} />
         <MetricCard label="Overdue actions" value={overdue.length} href={`/actions?facilityId=${id}&overdue=1`} />
-        <MetricCard
-          label="Visit"
-          value={labelize(visit.recommendation)}
-          href="/calendar"
-        />
       </div>
       <Card className="mb-6 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Bulk upload incidents</h2>
@@ -144,12 +166,20 @@ export default async function FacilityDetailPage({
               <dd>{facility.location || "—"}</dd>
             </div>
             <div>
-              <dt className="text-slate">Contact</dt>
-              <dd>{facility.contactInfo || "—"}</dd>
+              <dt className="text-slate">Contact person</dt>
+              <dd>
+                {facility.contactPerson || facility.contactInfo || "—"}
+                {facility.contactPhone ? (
+                  <span className="block text-[12px] text-slate">{facility.contactPhone}</span>
+                ) : null}
+                {facility.contactEmail ? (
+                  <span className="block text-[12px] text-slate">{facility.contactEmail}</span>
+                ) : null}
+              </dd>
             </div>
             <div>
-              <dt className="text-slate">Last site visit</dt>
-              <dd>{formatDate(lastVisit?.date)}</dd>
+              <dt className="text-slate">Last visit</dt>
+              <dd>{lastVisit ? formatDateTime(lastVisit.startTime || lastVisit.date) : "—"}</dd>
             </div>
             <div>
               <dt className="text-slate">Created</dt>
@@ -165,7 +195,9 @@ export default async function FacilityDetailPage({
                 fields={[
                   { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
                   { name: "location", label: "Location", defaultValue: facility.location || "" },
-                  { name: "contactInfo", label: "Contact", defaultValue: facility.contactInfo || "" },
+                  { name: "contactPerson", label: "Contact person", defaultValue: facility.contactPerson || "" },
+                  { name: "contactPhone", label: "Contact phone", defaultValue: facility.contactPhone || "" },
+                  { name: "contactEmail", label: "Contact email", defaultValue: facility.contactEmail || "" },
                   {
                     name: "updatedAt",
                     label: "Current timestamp",
@@ -187,7 +219,11 @@ export default async function FacilityDetailPage({
                   </Link>{" "}
                   <span className="text-slate">
                     {formatRole(row.assignmentType)}
-                    {row.isLead ? " · lead" : ""}
+                    {row.isLead
+                      ? row.assignmentType === "DEVELOPER"
+                        ? " · Lead Developer"
+                        : " · Lead PM/QA"
+                      : ""}
                   </span>
                 </li>
               ))}
@@ -220,6 +256,14 @@ export default async function FacilityDetailPage({
                     { value: "DEVELOPER", label: "Developer" },
                   ],
                 },
+                {
+                  name: "isLead",
+                  label: "Lead for this role",
+                  options: [
+                    { value: "false", label: "Team member" },
+                    { value: "true", label: "Yes — make this person the lead" },
+                  ],
+                },
               ]}
             />
           ) : (
@@ -241,6 +285,13 @@ export default async function FacilityDetailPage({
                 <div>
                   {branch.name}
                   {branch.location ? <span className="text-slate"> · {branch.location}</span> : null}
+                  {branch.contactPerson ? (
+                    <span className="block text-[12px] text-slate">
+                      Contact: {branch.contactPerson}
+                      {branch.contactPhone ? ` · ${branch.contactPhone}` : ""}
+                      {branch.contactEmail ? ` · ${branch.contactEmail}` : ""}
+                    </span>
+                  ) : null}
                 </div>
                 {hasPermission(user.role, "facilities.manage") ? (
                   <div className="mt-2">
@@ -250,6 +301,9 @@ export default async function FacilityDetailPage({
                       fields={[
                         { name: "name", label: "Branch name", required: true, defaultValue: branch.name },
                         { name: "location", label: "Location", defaultValue: branch.location || "" },
+                        { name: "contactPerson", label: "Contact person", defaultValue: branch.contactPerson || "" },
+                        { name: "contactPhone", label: "Contact phone", defaultValue: branch.contactPhone || "" },
+                        { name: "contactEmail", label: "Contact email", defaultValue: branch.contactEmail || "" },
                       ]}
                     />
                   </div>
@@ -265,6 +319,9 @@ export default async function FacilityDetailPage({
             fields={[
               { name: "name", label: "Branch name", required: true },
               { name: "location", label: "Location" },
+              { name: "contactPerson", label: "Contact person" },
+              { name: "contactPhone", label: "Contact phone" },
+              { name: "contactEmail", label: "Contact email" },
             ]}
           />
         ) : null}
@@ -275,8 +332,9 @@ export default async function FacilityDetailPage({
         <ActivityForm
           facilityId={id}
           facilityName={facility.name}
-          users={users.map((row) => ({ id: row.id, name: row.name }))}
+          users={userOptions}
           currentUserId={user.id}
+          canWriteReport={hasPermission(user.role, "reports.manage")}
         />
       </Card>
 
@@ -314,8 +372,44 @@ export default async function FacilityDetailPage({
           </Table>
         </Card>
         <Card className="p-5">
-          <h2 className="font-heading mb-3 text-[18px]">Open actions</h2>
-          <Table>
+          <h2 className="font-heading mb-3 text-[18px]">Closed incidents</h2>
+          {closedIncidents.length === 0 ? (
+            <p className="text-sm text-slate">No closed incidents yet.</p>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Incident</TH>
+                  <TH>Priority</TH>
+                  <TH>Closed</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {closedIncidents.map((row) => (
+                  <TR key={row.id}>
+                    <TD>
+                      <Link className="text-brand" href={`/incidents/${row.id}`}>
+                        {incidentLabel(row)}
+                      </Link>
+                    </TD>
+                    <TD>
+                      <TonePill tone={row.priority === "CRITICAL" ? "danger" : "warn"}>
+                        {labelize(row.priority)}
+                      </TonePill>
+                    </TD>
+                    <TD className="font-mono text-[12px]">
+                      {row.closedAt ? formatDate(row.closedAt) : labelIncidentStatus(row.status)}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+        </Card>
+      </div>
+      <Card className="mt-4 p-5">
+        <h2 className="font-heading mb-3 text-[18px]">Open actions</h2>
+        <Table>
             <THead>
               <TR>
                 <TH>Title</TH>
@@ -335,22 +429,52 @@ export default async function FacilityDetailPage({
                 ))}
             </TBody>
           </Table>
-        </Card>
-      </div>
+      </Card>
 
       <Card className="mt-4 p-5">
         <h2 className="font-heading mb-3 text-[18px]">Timeline</h2>
         <ol className="space-y-3">
           {activities.map((row) => (
             <li key={row.id} className="border-l border-hairline pl-3">
-              <p className="text-[12px] font-mono text-slate">{formatDateTime(row.date)}</p>
-              <p className="text-sm">
-                {labelize(row.type)} · {row.responsibleUser.name}
-                {row.participants.length
-                  ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
-                  : ""}
-              </p>
-              <p className="text-[13px] text-slate">{row.description}</p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-[12px] font-mono text-slate">
+                    {formatDateTime(row.startTime || row.date)}
+                    {row.endTime ? ` – ${formatDateTime(row.endTime)}` : ""}
+                  </p>
+                  <p className="text-sm">
+                    {labelActivityType(row.type)} · {row.responsibleUser.name}
+                    {row.participants.length
+                      ? ` · with ${row.participants.map((participant) => participant.user.name).join(", ")}`
+                      : ""}
+                  </p>
+                  <p className="text-[13px] text-slate">{row.description}</p>
+                </div>
+                {canWrite ? (
+                  <div className="flex items-center gap-1">
+                    <EditVisitButton
+                      compact
+                      facilityId={id}
+                      facilityName={facility.name}
+                      users={userOptions}
+                      currentUserId={user.id}
+                      canWriteReport={hasPermission(user.role, "reports.manage")}
+                      activity={{
+                        id: row.id,
+                        type: row.type,
+                        date: row.date,
+                        startTime: row.startTime,
+                        endTime: row.endTime,
+                        responsibleUserId: row.responsibleUserId,
+                        description: row.description,
+                        findings: row.findings,
+                        participantIds: row.participants.map((participant) => participant.user.id),
+                      }}
+                    />
+                    <DeleteButton compact path={`/api/activities/${row.id}`} />
+                  </div>
+                ) : null}
+              </div>
             </li>
           ))}
         </ol>
@@ -374,7 +498,11 @@ export default async function FacilityDetailPage({
                   <TD>{row.user.name}</TD>
                   <TD>
                     {formatRole(row.assignmentType)}
-                    {row.isLead ? " · lead" : ""}
+                    {row.isLead
+                      ? row.assignmentType === "DEVELOPER"
+                        ? " · Lead Developer"
+                        : " · Lead PM/QA"
+                      : ""}
                   </TD>
                   <TD>{row.isActive ? "Active" : "Removed"}</TD>
                   <TD className="font-mono text-[12px]">{formatDate(row.startDate)}</TD>
@@ -386,23 +514,30 @@ export default async function FacilityDetailPage({
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Handovers</h2>
           {hasPermission(user.role, "handovers.manage") ? (
-            <SimpleForm
-              action={`/api/facilities/${id}/handovers`}
-              submitLabel="Start handover"
-              fields={[
-                {
-                  name: "fromUserId",
-                  label: "From",
-                  options: [{ value: "", label: "—" }, ...users.map((row) => ({ value: row.id, label: row.name }))],
-                },
-                {
-                  name: "toUserId",
-                  label: "To",
-                  options: [{ value: "", label: "—" }, ...users.map((row) => ({ value: row.id, label: row.name }))],
-                },
-                { name: "notes", label: "Notes", textarea: true },
-              ]}
-            />
+            <div className="mb-4">
+              <p className="mb-3 text-sm text-slate">
+                From: <span className="text-ink">{leadPm?.user.name || "No Lead PM/QA assigned"}</span>
+              </p>
+              {leadPm ? (
+                <SimpleForm
+                  action={`/api/facilities/${id}/handovers`}
+                  submitLabel="Start handover"
+                  fields={[
+                    {
+                      name: "toUserId",
+                      label: "To",
+                      required: true,
+                      options: users
+                        .filter((row) => row.id !== leadPm.userId)
+                        .map((row) => ({ value: row.id, label: row.name })),
+                    },
+                    { name: "notes", label: "Notes", textarea: true },
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-slate">Assign a Lead PM/QA before starting a handover.</p>
+              )}
+            </div>
           ) : null}
           <ul className="mt-4 space-y-2 text-sm">
             {handovers.map((row) => (

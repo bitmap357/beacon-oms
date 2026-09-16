@@ -66,7 +66,10 @@ export async function POST(request: Request) {
           clientOrganizationId: body.clientOrganizationId,
           regionId: body.regionId || null,
           location: body.location || null,
-          contactInfo: body.contactInfo || null,
+          contactInfo: body.contactInfo || body.contactPerson || null,
+          contactPerson: body.contactPerson || null,
+          contactPhone: body.contactPhone || null,
+          contactEmail: body.contactEmail || null,
         },
       });
       await logAudit(tx, {

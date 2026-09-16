@@ -6,6 +6,7 @@ import { getScopedFacilityIds } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { incidentLabel, labelize } from "@/lib/utils";
+import { ListFilters } from "@/components/list-filters";
 
 export default async function SearchPage({
   searchParams,
@@ -69,14 +70,10 @@ export default async function SearchPage({
         description="Facilities, people, incidents, activities, actions, and reports."
         illustration="/brand/illustrations/page-search.png"
       />
-      <form className="mb-6">
-        <input
-          name="q"
-          defaultValue={query}
-          placeholder="Search"
-          className="h-11 w-full max-w-lg rounded-xl border border-hairline bg-surface-raised px-4 text-[15px] shadow-[inset_0_1px_2px_rgba(28,36,48,0.04)]"
-        />
-      </form>
+      <ListFilters
+        exportPath="/api/export/search"
+        fields={[{ name: "q", label: "Search", kind: "text", placeholder: "At least two characters" }]}
+      />
       {query.length < 2 ? (
         <p className="text-sm text-slate">Enter at least two characters.</p>
       ) : (

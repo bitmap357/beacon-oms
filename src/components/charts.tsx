@@ -2,9 +2,10 @@
 
 /** amCharts wrappers. ChartKey is the colour legend under dashboard graphs. */
 import { useLayoutEffect, useRef } from "react";
+import Link from "next/link";
 import type { Root } from "@amcharts/amcharts5";
 
-type Slice = { category: string; value: number; color: string };
+type Slice = { category: string; value: number; color: string; href?: string };
 
 export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -38,6 +39,10 @@ export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
       });
       series.labels.template.set("forceHidden", true);
       series.ticks.template.set("forceHidden", true);
+      series.slices.template.events.on("click", (ev) => {
+        const ctx = ev.target.dataItem?.dataContext as Slice | undefined;
+        if (ctx?.href) window.location.assign(ctx.href);
+      });
       series.data.setAll(data);
     }
     void run();
@@ -53,19 +58,32 @@ export function DonutChart({ data, id }: { data: Slice[]; id: string }) {
 export function ChartKey({
   items,
 }: {
-  items: Array<{ label: string; color: string }>;
+  items: Array<{ label: string; color: string; href?: string }>;
 }) {
   if (items.length === 0) return null;
   return (
     <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
       {items.map((item) => (
-        <li key={item.label} className="flex items-center gap-2 text-[12px] text-slate">
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: item.color }}
-            aria-hidden
-          />
-          {item.label}
+        <li key={item.label}>
+          {item.href ? (
+            <Link href={item.href} className="flex items-center gap-2 text-[12px] text-brand hover:underline">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+                aria-hidden
+              />
+              {item.label}
+            </Link>
+          ) : (
+            <span className="flex items-center gap-2 text-[12px] text-slate">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+                aria-hidden
+              />
+              {item.label}
+            </span>
+          )}
         </li>
       ))}
     </ul>

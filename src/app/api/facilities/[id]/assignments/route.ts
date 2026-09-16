@@ -36,18 +36,24 @@ export async function POST(
     const body = assignmentSchema.parse(await request.json());
     const assignee = await prisma.user.findUnique({ where: { id: body.userId } });
     if (!assignee || !assignee.isActive) throw new HttpError(400, "User not found");
-    if (body.isLead && (assignee.role !== "PM_QA" || body.assignmentType !== "PM_QA")) {
-      throw new HttpError(400, "Lead must be an active PM/QA assignment");
+    if (body.assignmentType === "PM_QA" && assignee.role !== "PM_QA" && assignee.role !== "ADMIN") {
+      throw new HttpError(400, "PM/QA assignments must go to a PM/QA user");
+    }
+    if (body.assignmentType === "DEVELOPER" && assignee.role !== "DEVELOPER" && assignee.role !== "ADMIN") {
+      throw new HttpError(400, "Developer assignments must go to a developer");
     }
     const meta = requestMeta(request);
     const assignment = await prisma.$transaction(async (tx) => {
       if (body.isLead) {
-        const existingLead = await tx.facilityAssignment.findFirst({
-          where: { facilityId: id, isLead: true, isActive: true },
+        await tx.facilityAssignment.updateMany({
+          where: {
+            facilityId: id,
+            assignmentType: body.assignmentType,
+            isLead: true,
+            isActive: true,
+          },
+          data: { isLead: false },
         });
-        if (existingLead) {
-          throw new HttpError(409, "This facility already has an active lead PM/QA");
-        }
       }
       const next = await tx.facilityAssignment.create({
         data: {

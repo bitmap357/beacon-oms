@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { apiRequest } from "@/components/forms";
 import { incidentLabel, labelize } from "@/lib/utils";
+import { labelIncidentStatus } from "@/lib/incident-status";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 
@@ -17,7 +18,7 @@ export function QaForm({
   defaultIncidentId,
 }: {
   facilities: { id: string; name: string }[];
-  incidents: { id: string; facilityId: string; createdAt: Date | string; reportedAt?: Date | string; description?: string | null }[];
+  incidents: { id: string; facilityId: string; createdAt: Date | string; reportedAt?: Date | string; description?: string | null; status?: string }[];
   defaultFacilityId?: string;
   defaultIncidentId?: string;
 }) {
@@ -28,10 +29,14 @@ export function QaForm({
     facilities[0]?.id ||
     "";
   const [facilityId, setFacilityId] = useState(initialFacility);
-  const related = useMemo(
-    () => incidents.filter((row) => row.facilityId === facilityId),
-    [incidents, facilityId],
-  );
+  const related = useMemo(() => {
+    const rows = incidents.filter((row) => row.facilityId === facilityId);
+    return [...rows].sort((a, b) => {
+      const rank = (status?: string) =>
+        status === "COMPLETED" || status === "AWAITING_QA" ? 0 : 1;
+      return rank(a.status) - rank(b.status);
+    });
+  }, [incidents, facilityId]);
 
   async function onSubmit(formData: FormData) {
     try {
@@ -77,6 +82,7 @@ export function QaForm({
           {related.map((row) => (
             <option key={row.id} value={row.id}>
               {incidentLabel(row)}
+              {row.status ? ` · ${labelIncidentStatus(row.status)}` : ""}
             </option>
           ))}
         </Select>

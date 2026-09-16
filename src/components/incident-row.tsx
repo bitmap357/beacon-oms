@@ -160,7 +160,7 @@ export function IncidentRow({
     >
       {statuses.map((status) => (
         <option key={status} value={status}>
-          {labelize(status)}
+          {labelIncidentStatus(status)}
         </option>
       ))}
     </Select>

@@ -14,7 +14,7 @@ import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, mergeStatusCounts } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, mergeStatusCounts, labelIncidentStatus } from "@/lib/incident-status";
 import {
   Building2,
   GitBranch,
@@ -42,6 +42,7 @@ const STATUS_COLORS: Record<string, string> = {
   NEW: "#1558D6",
   IN_PROGRESS: "#E8B923",
   ON_HOLD: "#854F0B",
+  COMPLETED: "#1D6B45",
   REOPENED: "#8A3A16",
   CLOSED: "#5B6472",
 };
@@ -324,7 +325,7 @@ export default async function DashboardPage({
         <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Activity</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Activities this week" value={activitiesThisWeek} href="/calendar" icon={CalendarDays} />
-          <MetricCard label="Visits due" value={visits.length} href="/calendar" icon={MapPin} />
+          <MetricCard label="Visits due" value={visits.length} href="/visits-due" icon={MapPin} />
           <MetricCard label="Pending QA" value={pendingQa} href="/qa" icon={ShieldCheck} />
           <MetricCard label="Reports this month" value={reportsThisMonth} href="/reports" icon={FileText} />
         </div>
@@ -363,15 +364,17 @@ export default async function DashboardPage({
           <DonutChart
             id="incident-status"
             data={mergeStatusCounts(incidentStatus).map((row) => ({
-              category: labelize(row.status),
+              category: labelIncidentStatus(row.status),
               value: row._count.status,
               color: STATUS_COLORS[row.status] || "#1558D6",
+              href: `/incidents?status=${row.status}`,
             }))}
           />
           <ChartKey
             items={mergeStatusCounts(incidentStatus).map((row) => ({
-              label: `${labelize(row.status)} (${row._count.status})`,
+              label: `${labelIncidentStatus(row.status)} (${row._count.status})`,
               color: STATUS_COLORS[row.status] || "#1558D6",
+              href: `/incidents?status=${row.status}`,
             }))}
           />
         </Card>
@@ -498,7 +501,12 @@ export default async function DashboardPage({
       </div>
       <div className="mt-6 grid gap-4 xl:grid-cols-2 xl:gap-6">
         <Card className="p-5">
-          <h2 className="font-heading mb-3 text-[18px]">Visits due</h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-heading text-[18px]">Visits due</h2>
+            <Link className="text-sm text-brand" href="/visits-due">
+              View all
+            </Link>
+          </div>
           {visits.length === 0 ? (
             <IllustratedEmpty
               title="No facilities currently flagged for a visit."

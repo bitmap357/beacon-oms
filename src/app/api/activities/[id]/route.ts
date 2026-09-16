@@ -48,6 +48,14 @@ export async function PATCH(
         data: {
           type: body.type,
           date: body.date ? new Date(body.date) : undefined,
+          startTime:
+            body.startTime === undefined
+              ? undefined
+              : body.startTime
+                ? new Date(body.startTime)
+                : null,
+          endTime:
+            body.endTime === undefined ? undefined : body.endTime ? new Date(body.endTime) : null,
           description: body.description === undefined ? undefined : body.description?.trim() || "",
           findings: body.findings ?? undefined,
           notes: body.notes ?? undefined,

@@ -169,7 +169,7 @@ export default async function IncidentDetailPage({
                 label: "Status",
                 options: incidentStatusOptions(canClose).map((value) => ({
                   value,
-                  label: labelize(value),
+                  label: labelIncidentStatus(value),
                 })),
                 defaultValue: String(canonicalIncidentStatus(incident.status)),
               },

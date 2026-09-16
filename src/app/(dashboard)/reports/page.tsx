@@ -11,19 +11,28 @@ import Link from "next/link";
 import { ScopeFilter } from "@/components/scope-filter";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
+import { ListFilters } from "@/components/list-filters";
+import { dateRange } from "@/lib/incident-status";
 
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ facilityId?: string; scope?: string }>;
+  searchParams: Promise<{ facilityId?: string; scope?: string; type?: string; status?: string; authorId?: string; from?: string; to?: string }>;
 }) {
   const user = await requireUser();
-  const { facilityId, scope } = await searchParams;
+  const { facilityId, scope, type, status, authorId, from, to } = await searchParams;
   const ids = await getScopedFacilityIds(user, scope);
   const scopedIds = facilityId && ids.includes(facilityId) ? [facilityId] : ids;
-  const [reports, facilities] = await Promise.all([
+  const range = dateRange(from, to);
+  const [reports, facilities, users] = await Promise.all([
     prisma.report.findMany({
-      where: { facilityId: { in: scopedIds } },
+      where: {
+        facilityId: { in: scopedIds },
+        ...(type ? { type } : {}),
+        ...(status ? { status } : {}),
+        ...(authorId ? { authorId } : {}),
+        ...(range ? { date: range } : {}),
+      },
       include: { facility: true, author: true, activity: { select: { id: true, type: true } } },
       orderBy: { date: "desc" },
     }),
@@ -34,6 +43,11 @@ export default async function ReportsPage({
         name: true,
         branches: { select: { id: true, name: true }, orderBy: { name: "asc" } },
       },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -54,6 +68,44 @@ export default async function ReportsPage({
         </p>
         <GenerateReportForm facilities={facilities} />
       </CollapsibleSection>
+      <ListFilters
+        exportPath="/api/export/reports"
+        fields={[
+          {
+            name: "facilityId",
+            label: "Facility",
+            kind: "select",
+            emptyLabel: "All facilities",
+            options: facilities.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "type",
+            label: "Type",
+            kind: "select",
+            options: ["OPERATIONAL", "SITE_VISIT", "INCIDENT", "QA", "TRAINING", "DEPLOYMENT"].map(
+              (value) => ({ value, label: labelize(value) }),
+            ),
+          },
+          {
+            name: "status",
+            label: "Status",
+            kind: "select",
+            options: ["DRAFT", "SUBMITTED", "REVIEWED"].map((value) => ({
+              value,
+              label: labelize(value),
+            })),
+          },
+          {
+            name: "authorId",
+            label: "Author",
+            kind: "select",
+            emptyLabel: "Anyone",
+            options: users.map((row) => ({ value: row.id, label: row.name })),
+          },
+          { name: "from", label: "From", kind: "date" },
+          { name: "to", label: "To", kind: "date" },
+        ]}
+      />
       {reports.length === 0 ? (
         <IllustratedEmpty
           title="No reports in this view yet. Generate one above."

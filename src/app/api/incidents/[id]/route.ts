@@ -13,7 +13,7 @@ import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { incidentPatchSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
-import { INCIDENT_STATUSES, OPEN_INCIDENT_STATUSES, canonicalIncidentStatus } from "@/lib/incident-status";
+import { INCIDENT_STATUSES, OPEN_INCIDENT_STATUSES, canonicalIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 import type { IncidentStatus } from "@/lib/db-types";
 
@@ -93,7 +93,7 @@ export async function PATCH(
                 ? null
                 : previous.closedAt,
           resolvedAt:
-            body.status === "CLOSED"
+            body.status === "CLOSED" || body.status === "COMPLETED"
               ? new Date()
               : body.status && (OPEN_INCIDENT_STATUSES as readonly string[]).includes(body.status)
                 ? null
@@ -150,7 +150,7 @@ export async function PATCH(
       const recipients = [incident.assigneeId, incident.reporterId].filter(Boolean) as string[];
       await notifyUsers(recipients, {
         type: body.status === "REOPENED" ? "INCIDENT_REOPENED" : "INCIDENT_STATUS_CHANGED",
-        message: `${incidentLabel(incident)} is now ${body.status.replaceAll("_", " ").toLowerCase()}`,
+        message: `${incidentLabel(incident)} is now ${labelIncidentStatus(body.status).toLowerCase()}`,
         relatedType: "Incident",
         relatedId: incident.id,
       });

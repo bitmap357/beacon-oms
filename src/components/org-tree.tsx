@@ -24,9 +24,19 @@ export function OrganizationTree({
       id: string;
       name: string;
       location: string | null;
+      contactPerson: string | null;
+      contactPhone: string | null;
+      contactEmail: string | null;
       status: string;
       updatedAt: Date | string;
-      branches: Array<{ id: string; name: string; location: string | null }>;
+      branches: Array<{
+        id: string;
+        name: string;
+        location: string | null;
+        contactPerson: string | null;
+        contactPhone: string | null;
+        contactEmail: string | null;
+      }>;
       _count: { incidents: number; actions: number; reports: number };
     }>;
   }>;
@@ -49,6 +59,9 @@ export function OrganizationTree({
         name: formData.get("name"),
         clientOrganizationId: orgId,
         location: formData.get("location"),
+        contactPerson: formData.get("contactPerson"),
+        contactPhone: formData.get("contactPhone"),
+        contactEmail: formData.get("contactEmail"),
       });
       toast.success("Facility added");
       router.refresh();
@@ -62,6 +75,9 @@ export function OrganizationTree({
       await apiRequest(`/api/facilities/${facilityId}/branches`, {
         name: formData.get("name"),
         location: formData.get("location"),
+        contactPerson: formData.get("contactPerson"),
+        contactPhone: formData.get("contactPhone"),
+        contactEmail: formData.get("contactEmail"),
       });
       toast.success("Branch added");
       router.refresh();
@@ -107,7 +123,7 @@ export function OrganizationTree({
           {canManageFacilities ? (
             <form
               action={(formData) => addFacility(org.id, formData)}
-              className="mb-5 grid gap-3 rounded-[10px] bg-surface p-3 md:grid-cols-3"
+              className="mb-5 grid gap-3 rounded-[10px] bg-surface p-3 md:grid-cols-2 lg:grid-cols-3"
             >
               <div>
                 <Label>Facility name</Label>
@@ -116,6 +132,18 @@ export function OrganizationTree({
               <div>
                 <Label>Location</Label>
                 <Input name="location" placeholder="City, campus, or site" />
+              </div>
+              <div>
+                <Label>Contact person (optional)</Label>
+                <Input name="contactPerson" placeholder="Name" />
+              </div>
+              <div>
+                <Label>Contact phone (optional)</Label>
+                <Input name="contactPhone" />
+              </div>
+              <div>
+                <Label>Contact email (optional)</Label>
+                <Input name="contactEmail" type="email" />
               </div>
               <div className="flex items-end">
                 <Button>Add facility</Button>
@@ -146,6 +174,9 @@ export function OrganizationTree({
                           fields={[
                             { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
                             { name: "location", label: "Location", defaultValue: facility.location || "" },
+                            { name: "contactPerson", label: "Contact person", defaultValue: facility.contactPerson || "" },
+                            { name: "contactPhone", label: "Contact phone", defaultValue: facility.contactPhone || "" },
+                            { name: "contactEmail", label: "Contact email", defaultValue: facility.contactEmail || "" },
                             {
                               name: "updatedAt",
                               label: "Current timestamp",
@@ -186,6 +217,9 @@ export function OrganizationTree({
                             ) : (
                               <span className="text-slate"> · No location set</span>
                             )}
+                            {branch.contactPerson ? (
+                              <span className="text-slate"> · {branch.contactPerson}</span>
+                            ) : null}
                           </span>
                           {canManageFacilities ? (
                             <EditDeleteControls
@@ -195,6 +229,9 @@ export function OrganizationTree({
                               fields={[
                                 { name: "name", label: "Branch name", required: true, defaultValue: branch.name },
                                 { name: "location", label: "Location", defaultValue: branch.location || "" },
+                                { name: "contactPerson", label: "Contact person", defaultValue: branch.contactPerson || "" },
+                                { name: "contactPhone", label: "Contact phone", defaultValue: branch.contactPhone || "" },
+                                { name: "contactEmail", label: "Contact email", defaultValue: branch.contactEmail || "" },
                               ]}
                             />
                           ) : null}
@@ -205,10 +242,13 @@ export function OrganizationTree({
                   {canManageFacilities ? (
                     <form
                       action={(formData) => addBranch(facility.id, formData)}
-                      className="mt-3 grid gap-3 md:grid-cols-3"
+                      className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3"
                     >
                       <Input name="name" required placeholder="Branch name" />
                       <Input name="location" placeholder="Location (optional)" />
+                      <Input name="contactPerson" placeholder="Contact person (optional)" />
+                      <Input name="contactPhone" placeholder="Phone (optional)" />
+                      <Input name="contactEmail" type="email" placeholder="Email (optional)" />
                       <Button variant="secondary">Add branch</Button>
                     </form>
                   ) : null}

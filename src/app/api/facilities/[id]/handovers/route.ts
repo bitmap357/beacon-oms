@@ -109,13 +109,18 @@ export async function POST(
     const { id } = await context.params;
     await assertFacilityAccess(user, id);
     const body = handoverSchema.parse(await request.json());
+    const inCharge = await prisma.facilityAssignment.findFirst({
+      where: { facilityId: id, isActive: true, assignmentType: "PM_QA", isLead: true },
+      select: { userId: true },
+    });
+    const fromUserId = inCharge?.userId ?? null;
     const snapshot = await buildSnapshot(id);
     const meta = requestMeta(request);
     const handover = await prisma.$transaction(async (tx) => {
       const next = await tx.handover.create({
         data: {
           facilityId: id,
-          fromUserId: body.fromUserId,
+          fromUserId,
           toUserId: body.toUserId,
           initiatedById: user.id,
           summarySnapshot: toJsonString(snapshot),
@@ -132,7 +137,7 @@ export async function POST(
       });
       return next;
     });
-    const recipients = [body.toUserId, body.fromUserId].filter(Boolean) as string[];
+    const recipients = [body.toUserId, fromUserId].filter(Boolean) as string[];
     await notifyUsers(recipients, {
       type: "HANDOVER_INITIATED",
       message: `A facility handover was initiated`,

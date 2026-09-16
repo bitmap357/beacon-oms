@@ -30,6 +30,7 @@ export type IncidentStatus =
   | "NEW"
   | "IN_PROGRESS"
   | "ON_HOLD"
+  | "COMPLETED"
   | "REOPENED"
   | "CLOSED";
 export type ActionStatus =

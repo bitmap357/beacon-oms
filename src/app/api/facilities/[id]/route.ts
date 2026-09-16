@@ -60,7 +60,10 @@ export async function PATCH(
           clientOrganizationId: body.clientOrganizationId,
           regionId: body.regionId,
           location: body.location,
-          contactInfo: body.contactInfo,
+          contactInfo: body.contactInfo === undefined ? undefined : body.contactInfo || body.contactPerson || null,
+          contactPerson: body.contactPerson,
+          contactPhone: body.contactPhone,
+          contactEmail: body.contactEmail,
         },
       });
       await logAudit(tx, {

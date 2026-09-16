@@ -46,6 +46,9 @@ export async function POST(
           facilityId: id,
           name: body.name,
           location: body.location || null,
+          contactPerson: body.contactPerson || null,
+          contactPhone: body.contactPhone || null,
+          contactEmail: body.contactEmail || null,
         },
       });
       await logAudit(tx, {

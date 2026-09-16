@@ -17,7 +17,13 @@ import { apiRequest } from "@/components/forms";
 import { DeleteButton } from "@/components/record-actions";
 import { PeoplePicker } from "@/components/people-picker";
 import { AttachmentPanel } from "@/components/attachment-panel";
+import { EditVisitButton } from "@/components/activity-form";
 import { REPORT_SECTIONS, labelFor } from "@/lib/reportTemplates";
+import {
+  ACTIVITY_TYPES,
+  reportTypeForActivity,
+  uploadActivityFile,
+} from "@/lib/activity-types";
 import { toast } from "sonner";
 
 export type CalendarEvent = {
@@ -34,6 +40,10 @@ export type CalendarEvent = {
   reportId?: string | null;
   members?: string[];
   attachments?: Array<{ id: string; fileName: string; fileSizeBytes: number }>;
+  description?: string | null;
+  findings?: string | null;
+  responsibleUserId?: string;
+  participantIds?: string[];
 };
 
 const KIND_STYLE: Record<CalendarEvent["kind"], string> = {
@@ -354,8 +364,12 @@ export function CalendarBoard({
         description: formData.get("description") || "",
         findings: formData.get("findings") || null,
       });
+      const file = formData.get("file");
+      if (file instanceof File && file.size > 0) {
+        await uploadActivityFile(created.activity.id, file);
+      }
       if (canWriteReport && formData.get("attachReport") === "on") {
-        const reportType = type === "TRAINING" ? "TRAINING" : "SITE_VISIT";
+        const reportType = reportTypeForActivity(type);
         await apiRequest("/api/reports", {
           type: reportType,
           facilityId: formData.get("facilityId"),
@@ -376,7 +390,7 @@ export function CalendarBoard({
 
   async function attachReportToVisit(formData: FormData) {
     if (!selectedEvent) return;
-    const reportType = selectedEvent.activityType === "TRAINING" ? "TRAINING" : "SITE_VISIT";
+    const reportType = reportTypeForActivity(selectedEvent.activityType || "SITE_VISIT");
     try {
       await apiRequest("/api/reports", {
         type: reportType,
@@ -639,7 +653,7 @@ export function CalendarBoard({
           <div className="w-full max-w-md rounded-t-[20px] border border-hairline bg-surface-raised p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-[16px]">
             <h3 className="font-heading mb-1 text-[18px]">Log a visit</h3>
             <p className="mb-4 text-[13px] text-slate">
-              Site visit, demo/meeting, or training. Future dates are fine. A report is optional.
+              Site visit, training, demonstration, and other visit types. Future dates are fine. A report file is optional.
             </p>
             <form action={logVisit} className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
               <div>
@@ -658,9 +672,11 @@ export function CalendarBoard({
               <div>
                 <Label>Type</Label>
                 <Select name="type" required value={visitType} onChange={(event) => setVisitType(event.target.value)}>
-                  <option value="SITE_VISIT">Site visit</option>
-                  <option value="DEMONSTRATION">Demo / meeting</option>
-                  <option value="TRAINING">Training</option>
+                  {ACTIVITY_TYPES.map((row) => (
+                    <option key={row.value} value={row.value}>
+                      {row.label}
+                    </option>
+                  ))}
                 </Select>
               </div>
               <div>
@@ -710,6 +726,10 @@ export function CalendarBoard({
                 <summary className="cursor-pointer text-[14px] text-slate">Findings (optional)</summary>
                 <Textarea name="findings" className="mt-2" />
               </details>
+              <div>
+                <Label>Attach a report file (optional)</Label>
+                <Input name="file" type="file" />
+              </div>
               {canWriteReport ? (
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -722,7 +742,7 @@ export function CalendarBoard({
                 </label>
               ) : null}
               {attachReport
-                ? (visitType === "TRAINING" ? REPORT_SECTIONS.TRAINING : REPORT_SECTIONS.SITE_VISIT).map((key) => (
+                ? REPORT_SECTIONS[reportTypeForActivity(visitType)].map((key) => (
                     <div key={key}>
                       <Label>{labelFor(key)} (optional)</Label>
                       <Textarea name={`content.${key}`} />
@@ -773,8 +793,8 @@ export function CalendarBoard({
             {canWriteReport && selectedEvent.kind === "visit" && !selectedEvent.reportId ? (
               <form action={attachReportToVisit} className="mt-4 grid max-h-56 gap-2 overflow-y-auto">
                 <p className="text-sm">Attach a report — fill only the fields you need</p>
-                {(selectedEvent.activityType === "TRAINING"
-                  ? REPORT_SECTIONS.TRAINING
+                {(selectedEvent.activityType
+                  ? REPORT_SECTIONS[reportTypeForActivity(selectedEvent.activityType)]
                   : REPORT_SECTIONS.SITE_VISIT
                 ).map((key) => (
                   <div key={key}>
@@ -787,7 +807,28 @@ export function CalendarBoard({
             ) : null}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               {selectedEvent.kind === "visit" || selectedEvent.kind === "activity" ? (
-                <DeleteButton path={`/api/activities/${selectedEvent.id}`} />
+                <>
+                  <EditVisitButton
+                    compact
+                    facilityId={selectedEvent.facilityId}
+                    facilityName={selectedEvent.facility}
+                    users={users}
+                    currentUserId={currentUserId}
+                    canWriteReport={canWriteReport}
+                    activity={{
+                      id: selectedEvent.id,
+                      type: selectedEvent.activityType || "SITE_VISIT",
+                      date: selectedEvent.at,
+                      startTime: selectedEvent.at,
+                      endTime: selectedEvent.end,
+                      responsibleUserId: selectedEvent.responsibleUserId || currentUserId,
+                      description: selectedEvent.description,
+                      findings: selectedEvent.findings,
+                      participantIds: selectedEvent.participantIds,
+                    }}
+                  />
+                  <DeleteButton path={`/api/activities/${selectedEvent.id}`} />
+                </>
               ) : null}
               {selectedEvent.kind !== "action" ? (
                 <Button

@@ -35,20 +35,16 @@ export async function PATCH(
 
     const assignment = await prisma.$transaction(async (tx) => {
       if (body.isLead) {
-        const existingLead = await tx.facilityAssignment.findFirst({
+        await tx.facilityAssignment.updateMany({
           where: {
             facilityId: previous.facilityId,
+            assignmentType: previous.assignmentType,
             isLead: true,
             isActive: true,
             id: { not: id },
           },
+          data: { isLead: false },
         });
-        if (existingLead) {
-          throw new HttpError(409, "This facility already has an active lead PM/QA");
-        }
-        if (previous.assignmentType !== "PM_QA") {
-          throw new HttpError(400, "Lead must be a PM/QA assignment");
-        }
       }
       const next = await tx.facilityAssignment.update({
         where: { id },

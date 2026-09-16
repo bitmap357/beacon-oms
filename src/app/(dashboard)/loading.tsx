@@ -1,5 +1,5 @@
-import { PageLoader } from "@/components/page-loader";
+import { PageSkeleton } from "@/components/page-loader";
 
 export default function DashboardLoading() {
-  return <PageLoader label="Loading this page" />;
+  return <PageSkeleton />;
 }

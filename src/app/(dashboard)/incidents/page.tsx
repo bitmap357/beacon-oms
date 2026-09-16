@@ -9,7 +9,7 @@ import { IncidentInbox } from "@/components/incident-row";
 import { IncidentFilters } from "@/components/incident-filters";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_INCIDENT_STATUS_QUERY, incidentStatusesForFilter } from "@/lib/incident-status";
+import { OPEN_INCIDENT_STATUS_QUERY, incidentStatusesForFilter, reportedAtFilter } from "@/lib/incident-status";
 
 export default async function IncidentsPage({
   searchParams,
@@ -23,6 +23,8 @@ export default async function IncidentsPage({
     withoutActions?: string;
     assigneeId?: string;
     add?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -30,6 +32,7 @@ export default async function IncidentsPage({
   const ids = await getScopedFacilityIds(user, query.scope);
   const scopedIds = query.facilityId && ids.includes(query.facilityId) ? [query.facilityId] : ids;
   const statusValues = incidentStatusesForFilter(query.status);
+  const dates = reportedAtFilter(query.from, query.to);
   const [incidents, facilities, users] = await Promise.all([
     prisma.incident.findMany({
       where: {
@@ -38,6 +41,7 @@ export default async function IncidentsPage({
         ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
         ...(statusValues ? { status: { in: statusValues } } : {}),
         ...(query.priority ? { priority: query.priority } : {}),
+        ...(dates || {}),
         ...(query.withoutActions === "1"
           ? {
               ...(!query.status ? { status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } } : {}),
@@ -76,7 +80,7 @@ export default async function IncidentsPage({
         illustration="/brand/illustrations/page-incidents.png"
         actions={<ScopeFilter includeMine />}
       />
-      <IncidentFilters />
+      <IncidentFilters facilities={facilities} users={users} />
       {incidents.length === 0 ? (
         <IllustratedEmpty
           title="No incidents in this view yet. Add one below, or switch the filter to All."

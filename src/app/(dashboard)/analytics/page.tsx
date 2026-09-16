@@ -8,11 +8,18 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart } from "@/components/charts";
 import { labelize } from "@/lib/utils";
 import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident-status";
+import { ListFilters } from "@/components/list-filters";
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const user = await requireUser();
   assertPermission(user, "analytics.view");
   const ids = await getAccessibleFacilityIds(user);
+  const { q } = await searchParams;
+  const personQuery = q?.trim();
 
   const [byPriority, incidents, team] = await Promise.all([
     prisma.incident.groupBy({
@@ -25,7 +32,11 @@ export default async function AnalyticsPage() {
       select: { createdAt: true, resolvedAt: true },
     }),
     prisma.user.findMany({
-      where: { role: { in: ["PM_QA", "DEVELOPER"] }, isActive: true },
+      where: {
+        role: { in: ["PM_QA", "DEVELOPER"] },
+        isActive: true,
+        ...(personQuery ? { name: { contains: personQuery } } : {}),
+      },
       select: { id: true, name: true },
     }),
   ]);
@@ -82,6 +93,10 @@ export default async function AnalyticsPage() {
         title="Analytics"
         description="Incident, facility, and team insights."
         illustration="/brand/illustrations/page-analytics.png"
+      />
+      <ListFilters
+        exportPath="/api/export/analytics"
+        fields={[{ name: "q", label: "Person", kind: "text", placeholder: "Team member" }]}
       />
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="p-5">

@@ -87,6 +87,9 @@ model Facility {
   region                       Region?  @relation(fields: [regionId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   location                     String?
   contactInfo                  String?
+  contactPerson                String?
+  contactPhone                 String?
+  contactEmail                 String?
   status                       String   @default("HEALTHY")
   calculatedStatus             String   @default("HEALTHY")
   statusOverride               Boolean  @default(false)
@@ -115,20 +118,23 @@ model Facility {
 
 // Optional sub-location (ward, lab). Incidents can point here.
 model FacilityBranch {
-  id         String   @id @default(cuid())
-  facilityId String
-  facility   Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  name       String
-  location   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  incidents  Incident[]
+  id             String   @id @default(cuid())
+  facilityId     String
+  facility       Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  name           String
+  location       String?
+  contactPerson  String?
+  contactPhone   String?
+  contactEmail   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  incidents      Incident[]
 
   @@unique([facilityId, name])
   @@index([facilityId])
 }
 
-// Who covers a facility. assignmentType PM_QA | DEVELOPER. One active lead is enforced in API code.
+// Who covers a facility. assignmentType PM_QA | DEVELOPER. One active lead PM/QA and one active lead Developer are enforced in API code.
 model FacilityAssignment {
   id             String   @id @default(cuid())
   facilityId     String
@@ -147,7 +153,7 @@ model FacilityAssignment {
   @@index([userId, isActive])
 }
 
-// Timed work at a facility. type SITE_VISIT is what the calendar logs as a "visit".
+// Timed work at a facility. Calendar visits use SITE_VISIT, TRAINING, DEMONSTRATION, and the other activity types.
 model Activity {
   id                String   @id @default(cuid())
   facilityId        String

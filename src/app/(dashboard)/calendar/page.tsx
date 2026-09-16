@@ -8,15 +8,18 @@ import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/page";
 import { CalendarBoard, type CalendarEvent } from "@/components/calendar-board";
 import { ScopeFilter } from "@/components/scope-filter";
+import { ListFilters } from "@/components/list-filters";
+import { isVisitType, labelActivityType } from "@/lib/activity-types";
 
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; view?: string; day?: string; scope?: string }>;
+  searchParams: Promise<{ month?: string; view?: string; day?: string; scope?: string; facilityId?: string; userId?: string }>;
 }) {
   const user = await requireUser();
-  const { month, view, day, scope } = await searchParams;
+  const { month, view, day, scope, facilityId, userId } = await searchParams;
   const ids = await getScopedFacilityIds(user, scope);
+  const scopedIds = facilityId && ids.includes(facilityId) ? [facilityId] : ids;
   const now = new Date();
   const [yearStr, monthStr] = (month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`).split("-");
   const year = Number(yearStr);
@@ -32,21 +35,33 @@ export default async function CalendarPage({
 
   const [activities, actions, facilities, users] = await Promise.all([
     prisma.activity.findMany({
-      where: { facilityId: { in: ids }, date: { gte: start, lt: end } },
+      where: {
+        facilityId: { in: scopedIds },
+        date: { gte: start, lt: end },
+        ...(userId
+          ? {
+              OR: [
+                { responsibleUserId: userId },
+                { participants: { some: { userId } } },
+              ],
+            }
+          : {}),
+      },
       include: {
         facility: true,
         responsibleUser: true,
         reports: { select: { id: true }, take: 1 },
-        participants: { include: { user: { select: { name: true } } } },
+        participants: { include: { user: { select: { id: true, name: true } } } },
         attachments: { where: { deletedAt: null }, select: { id: true, fileName: true, fileSizeBytes: true } },
       },
       orderBy: { date: "asc" },
     }),
     prisma.action.findMany({
       where: {
-        facilityId: { in: ids },
+        facilityId: { in: scopedIds },
         dueDate: { gte: start, lt: end },
         status: { notIn: ["COMPLETED", "CANCELLED"] },
+        ...(userId ? { ownerId: userId } : {}),
       },
       include: { facility: true, owner: true },
       orderBy: { dueDate: "asc" },
@@ -66,17 +81,8 @@ export default async function CalendarPage({
   const events: CalendarEvent[] = [
     ...activities.map((row) => ({
       id: row.id,
-      kind: ["SITE_VISIT", "DEMONSTRATION", "TRAINING"].includes(row.type)
-        ? ("visit" as const)
-        : ("activity" as const),
-      title:
-        row.type === "SITE_VISIT"
-          ? `Site visit · ${row.facility.name}`
-          : row.type === "DEMONSTRATION"
-            ? `Demo / meeting · ${row.facility.name}`
-            : row.type === "TRAINING"
-              ? `Training · ${row.facility.name}`
-              : row.facility.name,
+      kind: isVisitType(row.type) ? ("visit" as const) : ("activity" as const),
+      title: `${labelActivityType(row.type)} · ${row.facility.name}`,
       facility: row.facility.name,
       facilityId: row.facilityId,
       at: (row.startTime || row.date).toISOString(),
@@ -87,6 +93,10 @@ export default async function CalendarPage({
       reportId: row.reports[0]?.id || null,
       members: row.participants.map((participant) => participant.user.name),
       attachments: row.attachments,
+      description: row.description,
+      findings: row.findings,
+      responsibleUserId: row.responsibleUserId,
+      participantIds: row.participants.map((participant) => participant.user.id),
     })),
     ...actions.map((row) => ({
       id: row.id,
@@ -105,9 +115,28 @@ export default async function CalendarPage({
     <div>
       <PageHeader
         title="Calendar"
-        description="Jump to any past or future day, then log a site visit, demo/meeting, or training. A report is optional and can be attached later."
+        description="Jump to any past or future day, then log a visit. A report file is optional and can be attached later."
         illustration="/brand/illustrations/page-calendar.png"
         actions={<ScopeFilter />}
+      />
+      <ListFilters
+        exportPath="/api/export/calendar"
+        fields={[
+          {
+            name: "facilityId",
+            label: "Facility",
+            kind: "select",
+            emptyLabel: "All facilities",
+            options: facilities.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "userId",
+            label: "Person",
+            kind: "select",
+            emptyLabel: "Anyone",
+            options: users.map((row) => ({ value: row.id, label: row.name })),
+          },
+        ]}
       />
       <CalendarBoard
         year={year}

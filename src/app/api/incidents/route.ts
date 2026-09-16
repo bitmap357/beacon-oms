@@ -6,7 +6,7 @@ import { assertFacilityAccess, getAccessibleFacilityIds, hasPermission } from "@
 import { incidentSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
-import { incidentStatusesForFilter } from "@/lib/incident-status";
+import { incidentStatusesForFilter, reportedAtFilter } from "@/lib/incident-status";
 import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 
 export async function GET(request: Request) {
@@ -17,7 +17,11 @@ export async function GET(request: Request) {
     const facilityId = url.searchParams.get("facilityId");
     const status = url.searchParams.get("status");
     const priority = url.searchParams.get("priority");
+    const assigneeId = url.searchParams.get("assigneeId");
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
     const statusValues = incidentStatusesForFilter(status);
+    const dates = reportedAtFilter(from, to);
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
     if (facilityId) await assertFacilityAccess(user, facilityId);
     const incidents = await prisma.incident.findMany({
@@ -25,6 +29,8 @@ export async function GET(request: Request) {
         facilityId: facilityId ? facilityId : { in: ids },
         ...(statusValues ? { status: { in: statusValues } } : {}),
         ...(priority ? { priority: priority as never } : {}),
+        ...(assigneeId ? { assigneeId } : {}),
+        ...(dates || {}),
       },
       include: {
         facility: { select: { name: true } },

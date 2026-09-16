@@ -1,11 +1,11 @@
 /** Allowed incident statuses. Closed is QA-only (enforced in the PATCH route). */
 import type { IncidentStatus } from "@/lib/db-types";
-import { labelize } from "@/lib/utils";
 
 export const INCIDENT_STATUSES: IncidentStatus[] = [
   "NEW",
   "IN_PROGRESS",
   "ON_HOLD",
+  "COMPLETED",
   "REOPENED",
   "CLOSED",
 ];
@@ -14,14 +14,26 @@ export const OPEN_INCIDENT_STATUSES = [
   "NEW",
   "IN_PROGRESS",
   "ON_HOLD",
+  "COMPLETED",
   "REOPENED",
 ] as const;
 
 /** Legacy values still present in some databases from before the status rename. */
 export const INCIDENT_STATUS_ALIASES: Record<string, IncidentStatus> = {
   ASSIGNED: "NEW",
-  AWAITING_QA: "IN_PROGRESS",
+  NOT_STARTED: "NEW",
+  ONGOING: "IN_PROGRESS",
+  AWAITING_QA: "COMPLETED",
   RESOLVED: "CLOSED",
+};
+
+export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
+  NEW: "Not started",
+  IN_PROGRESS: "Ongoing",
+  ON_HOLD: "On hold",
+  COMPLETED: "Completed",
+  REOPENED: "Reopened",
+  CLOSED: "Closed",
 };
 
 export const OPEN_INCIDENT_STATUS_QUERY = [
@@ -60,7 +72,8 @@ export function incidentStatusesForFilter(status: string | null | undefined) {
 }
 
 export function labelIncidentStatus(status: string) {
-  return labelize(String(canonicalIncidentStatus(status)));
+  const canonical = canonicalIncidentStatus(status);
+  return INCIDENT_STATUS_LABELS[canonical as IncidentStatus] ?? String(canonical).replaceAll("_", " ");
 }
 
 export function mergeStatusCounts(
@@ -79,4 +92,17 @@ export function mergeStatusCounts(
 
 export function incidentStatusOptions(canClose: boolean): IncidentStatus[] {
   return canClose ? [...INCIDENT_STATUSES] : [...OPEN_INCIDENT_STATUSES];
+}
+
+export function dateRange(from?: string | null, to?: string | null) {
+  if (!from && !to) return undefined;
+  return {
+    ...(from ? { gte: new Date(`${from}T00:00:00`) } : {}),
+    ...(to ? { lte: new Date(`${to}T23:59:59.999`) } : {}),
+  };
+}
+
+export function reportedAtFilter(from?: string | null, to?: string | null) {
+  const range = dateRange(from, to);
+  return range ? { reportedAt: range } : undefined;
 }

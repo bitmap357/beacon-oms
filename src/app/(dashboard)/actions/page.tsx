@@ -12,7 +12,8 @@ import { TonePill } from "@/components/ui/status-pill";
 import { ScopeFilter } from "@/components/scope-filter";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY } from "@/lib/incident-status";
+import { ListFilters } from "@/components/list-filters";
+import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, dateRange } from "@/lib/incident-status";
 
 export default async function ActionsPage({
   searchParams,
@@ -24,6 +25,9 @@ export default async function ActionsPage({
     mine?: string;
     overdue?: string;
     ownerId?: string;
+    status?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -31,6 +35,7 @@ export default async function ActionsPage({
   const ids = await getScopedFacilityIds(user, query.scope);
   const scopedIds = query.facilityId && ids.includes(query.facilityId) ? [query.facilityId] : ids;
   const now = new Date();
+  const dueRange = dateRange(query.from, query.to);
   const [actions, facilities, users, incidents] = await Promise.all([
     prisma.action.findMany({
       where: {
@@ -38,6 +43,8 @@ export default async function ActionsPage({
         ...(query.incidentId ? { incidentId: query.incidentId } : {}),
         ...(query.mine === "1" ? { ownerId: user.id } : {}),
         ...(query.ownerId ? { ownerId: query.ownerId } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        ...(dueRange ? { dueDate: dueRange } : {}),
         ...(query.overdue === "1"
           ? { dueDate: { lt: now }, status: { in: [...OPEN_ACTION_STATUSES] } }
           : {}),
@@ -66,6 +73,37 @@ export default async function ActionsPage({
         description="Follow-up work required by incidents, with owners and due dates."
         illustration="/brand/illustrations/page-actions.png"
         actions={<ScopeFilter includeMine />}
+      />
+      <ListFilters
+        exportPath="/api/export/actions"
+        fields={[
+          {
+            name: "facilityId",
+            label: "Facility",
+            kind: "select",
+            emptyLabel: "All facilities",
+            options: facilities.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "ownerId",
+            label: "Owner",
+            kind: "select",
+            emptyLabel: "Anyone",
+            options: users.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "status",
+            label: "Status",
+            kind: "select",
+            options: ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "COMPLETED", "CANCELLED"].map((value) => ({
+              value,
+              label: labelize(value),
+            })),
+          },
+          { name: "from", label: "Due from", kind: "date" },
+          { name: "to", label: "Due to", kind: "date" },
+          { name: "overdue", label: "Overdue only", kind: "checkbox" },
+        ]}
       />
       {canManage ? (
         <CollapsibleSection title="Create action">

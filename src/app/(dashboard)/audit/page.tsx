@@ -6,44 +6,41 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/utils";
+import { ListFilters } from "@/components/list-filters";
+import { dateRange } from "@/lib/incident-status";
 
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<{
+    action?: string;
+    entityType?: string;
+    userId?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const user = await requireUser();
   assertPermission(user, "audit.read");
-  const params = await searchParams;
-  const action = typeof params.action === "string" ? params.action : undefined;
-  const entityType = typeof params.entityType === "string" ? params.entityType : undefined;
-  const logs = await prisma.auditLog.findMany({
-    where: {
-      ...(action ? { action: { contains: action } } : {}),
-      ...(entityType ? { entityType } : {}),
-    },
-    include: { user: { select: { name: true, email: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
-
-  const csv = [
-    ["when", "who", "action", "entity", "entityId", "previous", "next", "ip"].join(","),
-    ...logs.map((row) =>
-      [
-        row.createdAt.toISOString(),
-        row.user?.email || "",
-        row.action,
-        row.entityType,
-        row.entityId,
-        row.previousValue || "",
-        row.newValue || "",
-        row.ipAddress || "",
-      ]
-        .map((value) => `"${String(value).replaceAll('"', '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
+  const { action, entityType, userId, from, to } = await searchParams;
+  const range = dateRange(from, to);
+  const [logs, users] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: {
+        ...(action ? { action: { contains: action } } : {}),
+        ...(entityType ? { entityType } : {}),
+        ...(userId ? { userId } : {}),
+        ...(range ? { createdAt: range } : {}),
+      },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div>
@@ -51,33 +48,23 @@ export default async function AuditPage({
         title="Audit trail"
         description="Append-only history of important operational changes."
         illustration="/brand/illustrations/page-audit.png"
-        actions={
-          <a
-            className="text-sm text-brand"
-            href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
-            download="beacon-audit.csv"
-          >
-            Export CSV
-          </a>
-        }
       />
-      <form className="mb-4 flex flex-wrap gap-2">
-        <input
-          name="action"
-          placeholder="Action contains"
-          defaultValue={action}
-          className="h-9 rounded-[10px] border border-hairline px-3 text-sm"
-        />
-        <input
-          name="entityType"
-          placeholder="Entity type"
-          defaultValue={entityType}
-          className="h-9 rounded-[10px] border border-hairline px-3 text-sm"
-        />
-        <button className="h-9 rounded-[10px] bg-brand px-4 text-sm text-white">
-          Filter
-        </button>
-      </form>
+      <ListFilters
+        exportPath="/api/export/audit"
+        fields={[
+          { name: "action", label: "Action", kind: "text", placeholder: "Action contains" },
+          { name: "entityType", label: "Entity", kind: "text", placeholder: "Entity type" },
+          {
+            name: "userId",
+            label: "Person",
+            kind: "select",
+            emptyLabel: "Anyone",
+            options: users.map((row) => ({ value: row.id, label: row.name })),
+          },
+          { name: "from", label: "From", kind: "date" },
+          { name: "to", label: "To", kind: "date" },
+        ]}
+      />
       <Card>
         <Table>
           <THead>

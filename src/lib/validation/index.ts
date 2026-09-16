@@ -10,7 +10,17 @@ const incidentStatusSchema = z.preprocess((value) => {
   if (typeof value !== "string") return value;
   const normalized = value.trim().toUpperCase().replaceAll(" ", "_");
   return INCIDENT_STATUS_ALIASES[normalized] ?? normalized;
-}, z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "REOPENED", "CLOSED"]));
+}, z.enum(["NEW", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "REOPENED", "CLOSED"]));
+
+const optionalText = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().max(240).optional().nullable(),
+);
+
+const optionalEmail = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().email().max(160).optional().nullable(),
+);
 
 export const passwordSchema = z
   .string()
@@ -57,14 +67,32 @@ export const facilitySchema = z.object({
   name: z.string().trim().min(2).max(160),
   clientOrganizationId: z.string().min(1),
   regionId: z.string().optional().nullable(),
-  location: z.string().trim().max(240).optional().nullable(),
-  contactInfo: z.string().trim().max(240).optional().nullable(),
+  location: optionalText,
+  contactInfo: optionalText,
+  contactPerson: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(160).optional().nullable(),
+  ),
+  contactPhone: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(80).optional().nullable(),
+  ),
+  contactEmail: optionalEmail,
   updatedAt: z.string().optional(),
 });
 
 export const branchSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  location: z.string().trim().max(240).optional().nullable(),
+  location: optionalText,
+  contactPerson: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(160).optional().nullable(),
+  ),
+  contactPhone: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(80).optional().nullable(),
+  ),
+  contactEmail: optionalEmail,
 });
 
 export const statusOverrideSchema = z.object({
@@ -83,7 +111,10 @@ export const statusOverrideSchema = z.object({
 export const assignmentSchema = z.object({
   userId: z.string().min(1),
   assignmentType: z.enum(["PM_QA", "DEVELOPER"]),
-  isLead: z.boolean().optional(),
+  isLead: z.preprocess(
+    (value) => value === true || value === "true",
+    z.boolean().optional(),
+  ),
   updatedAt: z.string().optional(),
 });
 

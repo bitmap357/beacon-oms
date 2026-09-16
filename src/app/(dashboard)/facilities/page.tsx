@@ -11,14 +11,15 @@ import { FacilityForm } from "@/components/forms";
 import { formatDate } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
+import { ListFilters } from "@/components/list-filters";
 
 export default async function FacilitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; userId?: string; status?: string }>;
+  searchParams: Promise<{ scope?: string; userId?: string; status?: string; organizationId?: string; q?: string }>;
 }) {
   const user = await requireUser();
-  const { scope, userId, status } = await searchParams;
+  const { scope, userId, status, organizationId, q } = await searchParams;
   const ids = await getScopedFacilityIds(user, scope);
   const attention = ["ATTENTION_REQUIRED", "AT_RISK", "CRITICAL"];
   const [facilities, organizations] = await Promise.all([
@@ -27,6 +28,8 @@ export default async function FacilitiesPage({
         id: { in: ids },
         ...(status === "attention" ? { status: { in: attention } } : {}),
         ...(status && status !== "attention" ? { status } : {}),
+        ...(organizationId ? { clientOrganizationId: organizationId } : {}),
+        ...(q ? { name: { contains: q } } : {}),
         ...(userId
           ? { assignments: { some: { userId, isActive: true } } }
           : {}),
@@ -53,6 +56,32 @@ export default async function FacilitiesPage({
         illustration="/brand/illustrations/page-facilities.png"
         actions={<ScopeFilter />}
       />
+      <ListFilters
+        exportPath="/api/export/facilities"
+        fields={[
+          { name: "q", label: "Name", kind: "text", placeholder: "Facility name" },
+          {
+            name: "organizationId",
+            label: "Organization",
+            kind: "select",
+            emptyLabel: "All organizations",
+            options: organizations.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "status",
+            label: "Status",
+            kind: "select",
+            options: [
+              { value: "attention", label: "Needs attention" },
+              { value: "HEALTHY", label: "Healthy" },
+              { value: "ATTENTION_REQUIRED", label: "Attention required" },
+              { value: "AT_RISK", label: "At risk" },
+              { value: "CRITICAL", label: "Critical" },
+              { value: "INACTIVE", label: "Inactive" },
+            ],
+          },
+        ]}
+      />
       {hasPermission(user.role, "facilities.manage") ? (
         <CollapsibleSection title="Add facility">
           <FacilityForm organizations={organizations} />
@@ -72,6 +101,7 @@ export default async function FacilitiesPage({
                 <TH>Organization</TH>
                 <TH>Branches</TH>
                 <TH>Lead PM/QA</TH>
+                <TH>Lead Developer</TH>
                 <TH>Work</TH>
                 <TH>Status</TH>
                 <TH>Updated</TH>
@@ -95,7 +125,12 @@ export default async function FacilitiesPage({
                       ? row.branches.map((branch) => branch.name).join(", ")
                       : "—"}
                   </TD>
-                  <TD>{row.assignments[0]?.user.name || "—"}</TD>
+                  <TD>
+                    {row.assignments.find((assignment) => assignment.assignmentType === "PM_QA")?.user.name || "—"}
+                  </TD>
+                  <TD>
+                    {row.assignments.find((assignment) => assignment.assignmentType === "DEVELOPER")?.user.name || "—"}
+                  </TD>
                   <TD className="whitespace-nowrap text-[13px]">
                     <Link className="text-brand" href={`/incidents?facilityId=${row.id}`}>
                       {row._count.incidents} incidents
