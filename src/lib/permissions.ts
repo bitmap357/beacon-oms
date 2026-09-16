@@ -5,7 +5,6 @@
  * Everyone can list all facilities (facilities.readAll). Filter to assigned via getAssignedFacilityIds / ?scope=assigned.
  * Screens call assertPermission / getAccessibleFacilityIds; APIs use the same helpers via src/lib/http.ts.
  */
-import type { Prisma } from "@prisma/client";
 import type { UserRole } from "@/lib/db-types";
 import { prisma } from "@/lib/db";
 
@@ -28,9 +27,7 @@ export type Permission =
   | "qa.manage"
   | "handovers.manage"
   | "analytics.view"
-  | "analytics.full"
-  | "audit.read"
-  | "settings.manage";
+  | "audit.read";
 
 /** Capability list per role. Add a Permission union member above before using it here. */
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -53,9 +50,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "qa.manage",
     "handovers.manage",
     "analytics.view",
-    "analytics.full",
     "audit.read",
-    "settings.manage",
   ],
   MANAGEMENT: [
     "users.read",
@@ -73,7 +68,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "qa.manage",
     "handovers.manage",
     "analytics.view",
-    "analytics.full",
   ],
   PM_QA: [
     "orgs.read",
@@ -150,12 +144,6 @@ export async function getScopedFacilityIds(
   return assigned.filter((id) => all.includes(id));
 }
 
-export function facilityScopeWhere(
-  facilityIds: string[],
-): Prisma.FacilityWhereInput {
-  return { id: { in: facilityIds } };
-}
-
 export async function assertFacilityAccess(
   user: SessionUser,
   facilityId: string,
@@ -179,27 +167,6 @@ export async function assertFacilityAccess(
   });
 
   if (!assignment) {
-    const error = new Error("Forbidden") as Error & { status: number };
-    error.status = 403;
-    throw error;
-  }
-}
-
-export async function assertLeadOrElevated(
-  user: SessionUser,
-  facilityId: string,
-) {
-  if (user.role === "ADMIN" || user.role === "MANAGEMENT") return;
-  const lead = await prisma.facilityAssignment.findFirst({
-    where: {
-      userId: user.id,
-      facilityId,
-      isActive: true,
-      isLead: true,
-      assignmentType: "PM_QA",
-    },
-  });
-  if (!lead) {
     const error = new Error("Forbidden") as Error & { status: number };
     error.status = 403;
     throw error;

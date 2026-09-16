@@ -547,8 +547,10 @@ export async function GET(
     }
 
     if (kind === "incidents") {
-      const statusValues = incidentStatusesForFilter(pick(url, "status") || null);
+      const status = pick(url, "status");
+      const statusValues = incidentStatusesForFilter(status || null);
       const dates = reportedAtFilter(from, to);
+      const withoutActions = pick(url, "withoutActions") === "1";
       const rows = await prisma.incident.findMany({
         where: {
           facilityId: { in: scopedIds(ids, facilityId) },
@@ -557,7 +559,12 @@ export async function GET(
           ...(statusValues ? { status: { in: statusValues } } : {}),
           ...(pick(url, "priority") ? { priority: pick(url, "priority") as never } : {}),
           ...(dates || {}),
-          ...(pick(url, "withoutActions") === "1" ? { actions: { none: {} } } : {}),
+          ...(withoutActions
+            ? {
+                ...(!status ? { status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } } : {}),
+                actions: { none: {} },
+              }
+            : {}),
         },
         include: {
           facility: true,
@@ -571,7 +578,18 @@ export async function GET(
       return excelResponse(
         "beacon-incidents.xlsx",
         "Incidents",
-        ["Incident", "Facility", "Branch", "Status", "Priority", "Assignee", "Reporter", "Date reported"],
+        [
+          "Incident",
+          "Facility",
+          "Branch",
+          "Status",
+          "Priority",
+          "Assignee",
+          "Reporter",
+          "Date reported",
+          "Due date",
+          "Closed at",
+        ],
         rows.map((row) => [
           incidentLabel(row),
           row.facility.name,
@@ -581,6 +599,8 @@ export async function GET(
           row.assignee?.name || "",
           row.reporter.name,
           isoDay(row.reportedAt),
+          isoDay(row.dueDate),
+          isoDay(row.closedAt),
         ]),
       );
     }

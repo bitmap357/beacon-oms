@@ -1,4 +1,4 @@
-/** Cross-facility charts. Permission: analytics.view / analytics.full */
+/** Cross-facility charts. Permission: analytics.view */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertPermission, getAccessibleFacilityIds } from "@/lib/permissions";

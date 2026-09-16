@@ -25,20 +25,6 @@ export function BrandMark({
   );
 }
 
-export function BrandWordmark({ className }: { className?: string }) {
-  return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <BrandMark size={48} />
-      <div>
-        <p className="font-heading text-2xl leading-none text-ink">Beacon</p>
-        <p className="mt-1 text-[12px] tracking-wide text-slate">
-          Operations Management System
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /** Full lockup: pin + Beacon + tagline from public/brand/lockup.png */
 export function BrandLockup({ className }: { className?: string }) {
   return (

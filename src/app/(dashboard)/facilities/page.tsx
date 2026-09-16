@@ -36,6 +36,7 @@ export default async function FacilitiesPage({
       },
       include: {
         clientOrganization: true,
+        region: true,
         branches: { orderBy: { name: "asc" } },
         assignments: {
           where: { isActive: true, isLead: true },
@@ -45,7 +46,10 @@ export default async function FacilitiesPage({
       },
       orderBy: { name: "asc" },
     }),
-    prisma.clientOrganization.findMany({ orderBy: { name: "asc" } }),
+    prisma.clientOrganization.findMany({
+      orderBy: { name: "asc" },
+      include: { regions: { orderBy: { name: "asc" } } },
+    }),
   ]);
 
   return (
@@ -99,6 +103,7 @@ export default async function FacilitiesPage({
               <TR>
                 <TH>Facility</TH>
                 <TH>Organization</TH>
+                <TH>Region</TH>
                 <TH>Branches</TH>
                 <TH>Lead PM/QA</TH>
                 <TH>Lead Developer</TH>
@@ -120,6 +125,7 @@ export default async function FacilitiesPage({
                       {row.clientOrganization.name}
                     </Link>
                   </TD>
+                  <TD>{row.region?.name || "—"}</TD>
                   <TD>
                     {row.branches.length
                       ? row.branches.map((branch) => branch.name).join(", ")

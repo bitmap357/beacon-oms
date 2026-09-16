@@ -1,4 +1,4 @@
-/** POST mark one notification read. */
+/** PATCH mark one notification read. */
 import { prisma } from "@/lib/db";
 import { errorResponse, json, requireApiUser } from "@/lib/http";
 
@@ -17,11 +17,4 @@ export async function PATCH(
   } catch (error) {
     return errorResponse(error);
   }
-}
-
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  return PATCH(request, context);
 }

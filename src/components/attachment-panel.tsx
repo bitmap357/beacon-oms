@@ -6,6 +6,7 @@ import { Paperclip, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/record-actions";
 
 type AttachmentRow = { id: string; fileName: string; fileSizeBytes: number };
 
@@ -50,7 +51,7 @@ export function AttachmentPanel({
       ) : (
         <ul className="space-y-1 text-sm">
           {attachments.map((row) => (
-            <li key={row.id}>
+            <li key={row.id} className="flex flex-wrap items-center gap-2">
               <a
                 className="text-brand"
                 href={`/api/attachments/${row.id}`}
@@ -59,9 +60,10 @@ export function AttachmentPanel({
               >
                 {row.fileName}
               </a>
-              <span className="ml-2 font-mono text-[12px] text-slate">
+              <span className="font-mono text-[12px] text-slate">
                 {Math.max(1, Math.round(row.fileSizeBytes / 1024))} KB
               </span>
+              <DeleteButton compact path={`/api/attachments/${row.id}`} label="Remove file" />
             </li>
           ))}
         </ul>

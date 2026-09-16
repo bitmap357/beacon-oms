@@ -29,16 +29,22 @@ export async function apiRequest<T>(
 export function FacilityForm({
   organizations,
 }: {
-  organizations: { id: string; name: string }[];
+  organizations: Array<{
+    id: string;
+    name: string;
+    regions: Array<{ id: string; name: string }>;
+  }>;
 }) {
   const router = useRouter();
   const [orgId, setOrgId] = useState(organizations[0]?.id || "");
+  const regions = organizations.find((row) => row.id === orgId)?.regions ?? [];
 
   async function onSubmit(formData: FormData) {
     try {
       await apiRequest("/api/facilities", {
         name: formData.get("name"),
         clientOrganizationId: formData.get("clientOrganizationId"),
+        regionId: formData.get("regionId") || null,
         location: formData.get("location"),
         contactPerson: formData.get("contactPerson"),
         contactPhone: formData.get("contactPhone"),
@@ -67,6 +73,17 @@ export function FacilityForm({
           {organizations.map((org) => (
             <option key={org.id} value={org.id}>
               {org.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label>Region (optional)</Label>
+        <Select key={orgId} name="regionId" disabled={regions.length === 0} defaultValue="">
+          <option value="">No region</option>
+          {regions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.name}
             </option>
           ))}
         </Select>

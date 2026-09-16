@@ -1,21 +1,6 @@
-/** PageHeader + EmptyState used at the top of dashboard screens. */
+/** PageHeader used at the top of dashboard screens. */
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export function EmptyState({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-hairline bg-surface-raised px-6 py-12 text-center">
-      <p className="text-[15px] text-slate">{title}</p>
-      {action ? <div className="mt-3">{action}</div> : null}
-    </div>
-  );
-}
 
 export function PageHeader({
   title,
@@ -88,22 +73,5 @@ export function CollapsibleSection({
       </summary>
       <div className="mt-4">{children}</div>
     </details>
-  );
-}
-
-export function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("space-y-1", className)}>
-      <p className="text-[14px] text-slate">{label}</p>
-      {children}
-    </div>
   );
 }

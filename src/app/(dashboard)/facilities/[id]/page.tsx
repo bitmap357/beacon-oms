@@ -17,6 +17,7 @@ import { formatDate, formatDateTime, formatRole, incidentLabel, labelize } from 
 import { IncidentImportForm } from "@/components/incident-forms";
 import { Button } from "@/components/ui/button";
 import { DeleteButton, EditDeleteControls } from "@/components/record-actions";
+import { AssignmentActions } from "@/components/assignment-actions";
 import { isClosedIncidentStatus, isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 import { labelActivityType } from "@/lib/activity-types";
 import { Plus } from "lucide-react";
@@ -32,7 +33,7 @@ export default async function FacilityDetailPage({
   const facility = await prisma.facility.findUnique({
     where: { id },
     include: {
-      clientOrganization: true,
+      clientOrganization: { include: { regions: { orderBy: { name: "asc" } } } },
       region: true,
       branches: { orderBy: { name: "asc" } },
       assignments: {
@@ -98,7 +99,7 @@ export default async function FacilityDetailPage({
     <div>
       <PageHeader
         title={facility.name}
-        description={`${facility.clientOrganization.name}${facility.branches.length ? ` · ${facility.branches.length} branch${facility.branches.length === 1 ? "" : "es"}` : ""}`}
+        description={`${facility.clientOrganization.name}${facility.region ? ` · ${facility.region.name}` : ""}${facility.branches.length ? ` · ${facility.branches.length} branch${facility.branches.length === 1 ? "" : "es"}` : ""}`}
         illustration="/brand/illustrations/page-facilities.png"
         actions={
           <div className="flex items-center gap-2">
@@ -162,6 +163,10 @@ export default async function FacilityDetailPage({
               </dd>
             </div>
             <div>
+              <dt className="text-slate">Region</dt>
+              <dd>{facility.region?.name || "—"}</dd>
+            </div>
+            <div>
               <dt className="text-slate">Location</dt>
               <dd>{facility.location || "—"}</dd>
             </div>
@@ -194,6 +199,18 @@ export default async function FacilityDetailPage({
                 title="Edit name and location"
                 fields={[
                   { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
+                  {
+                    name: "regionId",
+                    label: "Region",
+                    defaultValue: facility.regionId || "",
+                    options: [
+                      { value: "", label: "No region" },
+                      ...facility.clientOrganization.regions.map((row) => ({
+                        value: row.id,
+                        label: row.name,
+                      })),
+                    ],
+                  },
                   { name: "location", label: "Location", defaultValue: facility.location || "" },
                   { name: "contactPerson", label: "Contact person", defaultValue: facility.contactPerson || "" },
                   { name: "contactPhone", label: "Contact phone", defaultValue: facility.contactPhone || "" },
@@ -213,7 +230,8 @@ export default async function FacilityDetailPage({
             {facility.assignments
               .filter((row) => row.isActive)
               .map((row) => (
-                <li key={row.id}>
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
                   <Link className="text-brand" href={`/profile/${row.userId}`}>
                     {row.user.name}
                   </Link>{" "}
@@ -225,6 +243,14 @@ export default async function FacilityDetailPage({
                         : " · Lead PM/QA"
                       : ""}
                   </span>
+                  </span>
+                  {hasPermission(user.role, "assignments.manage") ? (
+                    <AssignmentActions
+                      assignmentId={row.id}
+                      isLead={row.isLead}
+                      updatedAt={row.updatedAt.toISOString()}
+                    />
+                  ) : null}
                 </li>
               ))}
           </ul>

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -20,10 +20,13 @@ export function OrganizationTree({
   organizations: Array<{
     id: string;
     name: string;
+    regions: Array<{ id: string; name: string }>;
     facilities: Array<{
       id: string;
       name: string;
       location: string | null;
+      regionId: string | null;
+      region: { id: string; name: string } | null;
       contactPerson: string | null;
       contactPhone: string | null;
       contactEmail: string | null;
@@ -53,11 +56,24 @@ export function OrganizationTree({
     }
   }
 
+  async function addRegion(orgId: string, formData: FormData) {
+    try {
+      await apiRequest(`/api/client-organizations/${orgId}/regions`, {
+        name: formData.get("name"),
+      });
+      toast.success("Region added");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save");
+    }
+  }
+
   async function addFacility(orgId: string, formData: FormData) {
     try {
       await apiRequest("/api/facilities", {
         name: formData.get("name"),
         clientOrganizationId: orgId,
+        regionId: formData.get("regionId") || null,
         location: formData.get("location"),
         contactPerson: formData.get("contactPerson"),
         contactPhone: formData.get("contactPhone"),
@@ -120,6 +136,27 @@ export function OrganizationTree({
             ) : null}
           </div>
 
+          {org.regions.length ? (
+            <p className="mb-3 text-[13px] text-slate">
+              Regions: {org.regions.map((row) => row.name).join(", ")}
+            </p>
+          ) : (
+            <p className="mb-3 text-[13px] text-slate">No regions yet. Optional — facilities can sit on the organization without one.</p>
+          )}
+
+          {canManageOrgs ? (
+            <form
+              action={(formData) => addRegion(org.id, formData)}
+              className="mb-5 flex flex-wrap items-end gap-3"
+            >
+              <div className="min-w-48 flex-1">
+                <Label>New region</Label>
+                <Input name="name" required placeholder="Region name" />
+              </div>
+              <Button variant="secondary">Add region</Button>
+            </form>
+          ) : null}
+
           {canManageFacilities ? (
             <form
               action={(formData) => addFacility(org.id, formData)}
@@ -132,6 +169,17 @@ export function OrganizationTree({
               <div>
                 <Label>Location</Label>
                 <Input name="location" placeholder="City, campus, or site" />
+              </div>
+              <div>
+                <Label>Region (optional)</Label>
+                <Select name="regionId" defaultValue="">
+                  <option value="">No region</option>
+                  {org.regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
               <div>
                 <Label>Contact person (optional)</Label>
@@ -162,7 +210,11 @@ export function OrganizationTree({
                       <Link className="font-heading text-[16px] text-brand" href={`/facilities/${facility.id}`}>
                         {facility.name}
                       </Link>
-                      <p className="text-[12px] text-slate">{facility.location || "No location set"}</p>
+                      <p className="text-[12px] text-slate">
+                        {[facility.region?.name, facility.location || "No location set"]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusPill status={facility.status} />
@@ -173,6 +225,18 @@ export function OrganizationTree({
                           title="Edit facility"
                           fields={[
                             { name: "name", label: "Facility name", required: true, defaultValue: facility.name },
+                            {
+                              name: "regionId",
+                              label: "Region",
+                              defaultValue: facility.regionId || "",
+                              options: [
+                                { value: "", label: "No region" },
+                                ...org.regions.map((region) => ({
+                                  value: region.id,
+                                  label: region.name,
+                                })),
+                              ],
+                            },
                             { name: "location", label: "Location", defaultValue: facility.location || "" },
                             { name: "contactPerson", label: "Contact person", defaultValue: facility.contactPerson || "" },
                             { name: "contactPhone", label: "Contact phone", defaultValue: facility.contactPhone || "" },

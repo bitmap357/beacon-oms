@@ -26,8 +26,10 @@ export default async function OrganizationsPage({
         }
       : {},
     include: {
+      regions: { orderBy: { name: "asc" } },
       facilities: {
         include: {
+          region: { select: { id: true, name: true } },
           branches: { orderBy: { name: "asc" } },
           _count: { select: { incidents: true, actions: true, reports: true } },
         },

@@ -1,6 +1,6 @@
 /** Argon2id hashing, password rules, and reset-token helpers. Policy text: CREDENTIAL_HINT. */
 import { hash, verify } from "@node-rs/argon2";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const ARGON2_OPTIONS = {
   memoryCost: 19456,
@@ -28,13 +28,6 @@ export function sha256(value: string) {
 export function createResetToken() {
   const token = randomBytes(32).toString("hex");
   return { token, hash: sha256(token) };
-}
-
-export function safeEqual(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }
 
 export const CREDENTIAL_COMPLEXITY =

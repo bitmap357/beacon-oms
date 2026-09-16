@@ -6,10 +6,17 @@ import { getScopedFacilityIds, hasPermission } from "@/lib/permissions";
 import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { IncidentForm, IncidentImportForm } from "@/components/incident-forms";
 import { IncidentInbox } from "@/components/incident-row";
-import { IncidentFilters } from "@/components/incident-filters";
+import { ListFilters } from "@/components/list-filters";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
-import { OPEN_INCIDENT_STATUS_QUERY, incidentStatusesForFilter, reportedAtFilter } from "@/lib/incident-status";
+import {
+  INCIDENT_STATUSES,
+  OPEN_INCIDENT_STATUS_QUERY,
+  incidentStatusesForFilter,
+  labelIncidentStatus,
+  reportedAtFilter,
+} from "@/lib/incident-status";
+import { labelize } from "@/lib/utils";
 
 export default async function IncidentsPage({
   searchParams,
@@ -80,7 +87,49 @@ export default async function IncidentsPage({
         illustration="/brand/illustrations/page-incidents.png"
         actions={<ScopeFilter includeMine />}
       />
-      <IncidentFilters facilities={facilities} users={users} />
+      <ListFilters
+        exportPath="/api/export/incidents"
+        fields={[
+          {
+            name: "facilityId",
+            label: "Facility",
+            kind: "select",
+            emptyLabel: "All facilities",
+            options: facilities.map((row) => ({ value: row.id, label: row.name })),
+          },
+          {
+            name: "status",
+            label: "Status",
+            kind: "select",
+            options: [
+              { value: "open", label: "Open" },
+              ...INCIDENT_STATUSES.map((status) => ({
+                value: status,
+                label: labelIncidentStatus(status),
+              })),
+            ],
+          },
+          {
+            name: "priority",
+            label: "Priority",
+            kind: "select",
+            options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
+              value,
+              label: labelize(value),
+            })),
+          },
+          {
+            name: "assigneeId",
+            label: "Assignee",
+            kind: "select",
+            emptyLabel: "Anyone",
+            options: users.map((row) => ({ value: row.id, label: row.name })),
+          },
+          { name: "from", label: "From", kind: "date" },
+          { name: "to", label: "To", kind: "date" },
+          { name: "withoutActions", label: "Without actions", kind: "checkbox" },
+        ]}
+      />
       {incidents.length === 0 ? (
         <IllustratedEmpty
           title="No incidents in this view yet. Add one below, or switch the filter to All."

@@ -1,7 +1,7 @@
 /** Admin user list. Roles display via formatRole. API: /api/users */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { assertPermission } from "@/lib/permissions";
+import { assertPermission, hasPermission } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -9,6 +9,7 @@ import { SimpleForm } from "@/components/forms";
 import { formatDateTime, formatRole } from "@/lib/utils";
 import { CREDENTIAL_HINT } from "@/lib/password";
 import { ListFilters } from "@/components/list-filters";
+import { UserAdminActions } from "@/components/user-admin-actions";
 
 export default async function UsersAdminPage({
   searchParams,
@@ -98,6 +99,7 @@ export default async function UsersAdminPage({
               <TH>Role</TH>
               <TH>Status</TH>
               <TH>Last login</TH>
+              {canManage ? <TH></TH> : null}
             </TR>
           </THead>
           <TBody>
@@ -112,6 +114,19 @@ export default async function UsersAdminPage({
                 <TD>{formatRole(row.role)}</TD>
                 <TD>{row.isActive ? "Active" : "Deactivated"}</TD>
                 <TD className="font-mono text-[12px]">{formatDateTime(row.lastLoginAt)}</TD>
+                {canManage ? (
+                  <TD>
+                    <UserAdminActions
+                      userId={row.id}
+                      name={row.name}
+                      email={row.email}
+                      role={row.role}
+                      isActive={row.isActive}
+                      isSelf={row.id === user.id}
+                      canForceReset={hasPermission(user.role, "users.forceReset")}
+                    />
+                  </TD>
+                ) : null}
               </TR>
             ))}
           </TBody>
