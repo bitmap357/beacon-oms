@@ -1,5 +1,6 @@
 /**
- * Demo data for local SQL Server. Login: admin@spagad.local / Admin!234
+ * Demo data for local SQL Server.
+ * Password: DEMO_PASSWORD / SEED_PASSWORD env, or Admin!234 outside production.
  * Ids like fac-focos / inc-lab are stable so you can click them in the UI.
  * Re-run: npx prisma db seed
  */
@@ -18,12 +19,23 @@ async function hashPassword(password: string) {
   });
 }
 
+function demoPassword() {
+  const fromEnv = process.env.DEMO_PASSWORD || process.env.SEED_PASSWORD;
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Refusing to seed production without DEMO_PASSWORD (or SEED_PASSWORD).",
+    );
+  }
+  return "Admin!234";
+}
+
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
 async function main() {
-  const password = await hashPassword("Admin!234");
+  const password = await hashPassword(demoPassword());
   const users = await Promise.all(
     [
       ["Ama Mensah", "admin@spagad.local", "ADMIN"],

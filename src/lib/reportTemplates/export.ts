@@ -51,15 +51,32 @@ async function withLogos(report: ReportRecord, facility?: { logoS3Key: string | 
 }
 
 function chromeExecutable() {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+  const fromEnv =
+    process.env.CHROME_PATH ||
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.EDGE_PATH;
+  if (fromEnv) {
+    if (!existsSync(fromEnv)) {
+      throw new Error(
+        `CHROME_PATH / PUPPETEER_EXECUTABLE_PATH points to a missing file: ${fromEnv}`,
+      );
+    }
+    return fromEnv;
+  }
   const candidates = [
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
     path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "Application", "chrome.exe"),
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    path.join(process.env.LOCALAPPDATA || "", "Microsoft", "Edge", "Application", "msedge.exe"),
     "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
     "/usr/bin/chromium-browser",
     "/usr/bin/chromium",
+    "/snap/bin/chromium",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
   ];
   return candidates.find((candidate) => candidate && existsSync(candidate));
 }
@@ -71,9 +88,14 @@ export async function exportPdf(
   const payload = await withLogos(report, facility);
   const puppeteer = await import("puppeteer");
   const executablePath = chromeExecutable();
+  if (!executablePath) {
+    throw new Error(
+      "PDF export needs Chrome or Edge. Install a browser, or set CHROME_PATH (or PUPPETEER_EXECUTABLE_PATH) to the executable.",
+    );
+  }
   const browser = await puppeteer.default.launch({
     headless: true,
-    ...(executablePath ? { executablePath } : {}),
+    executablePath,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   try {

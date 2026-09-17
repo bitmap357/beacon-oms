@@ -64,7 +64,14 @@ export function AttachmentPanel({
               <span className="font-mono text-[12px] text-slate">
                 {Math.max(1, Math.round(row.fileSizeBytes / 1024))} KB
               </span>
-              <DeleteButton compact path={`/api/attachments/${row.id}`} label="Remove file" />
+              <DeleteButton
+                compact
+                path={`/api/attachments/${row.id}`}
+                label="Remove file"
+                confirmTitle="Remove this file?"
+                confirmDescription="The file is removed from this record. Audit history is kept."
+                successToast="File removed"
+              />
             </li>
           ))}
         </ul>

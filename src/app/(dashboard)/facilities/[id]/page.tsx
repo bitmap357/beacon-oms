@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
+import { FACILITY_HEALTH_CRITERIA } from "@/lib/rules/facilityHealth";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
@@ -120,6 +121,23 @@ export default async function FacilityDetailPage({
           </div>
         }
       />
+      <Card className="mb-6 border-gold/40 bg-status-gold-bg/60 p-4">
+        <p className="font-heading text-[15px] text-brand-deep">
+          Status: {labelize(facility.status)}
+          {facility.statusOverride ? " (manual override)" : " (calculated)"}
+        </p>
+        <ul className="mt-2 space-y-1 text-[13px] leading-relaxed text-ink">
+          {FACILITY_HEALTH_CRITERIA.map((row) => (
+            <li key={row.status}>
+              <span className="font-medium text-brand">{labelize(row.status)}:</span> {row.rule}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[12px] text-slate">
+          Staffing gaps (Lead PM/QA / Lead Developer) are shown separately and do not change this
+          health score by themselves.
+        </p>
+      </Card>
       {staffingGaps.length ? (
         <div
           role="status"
@@ -637,7 +655,9 @@ export default async function FacilityDetailPage({
           {hasPermission(user.role, "handovers.manage") ? (
             <div className="mb-4">
               <p className="mb-3 text-sm text-slate">
-                From: <span className="text-ink">{leadPm?.user.name || "No Lead PM/QA assigned"}</span>
+                Hands Lead PM/QA from{" "}
+                <span className="text-ink">{leadPm?.user.name || "No Lead PM/QA assigned"}</span> to
+                another PM/QA. The previous lead stays on the team as a member.
               </p>
               {leadPm ? (
                 <SimpleForm
@@ -646,10 +666,10 @@ export default async function FacilityDetailPage({
                   fields={[
                     {
                       name: "toUserId",
-                      label: "To",
+                      label: "To (new Lead PM/QA)",
                       required: true,
                       options: users
-                        .filter((row) => row.id !== leadPm.userId)
+                        .filter((row) => row.role === "PM_QA" && row.id !== leadPm.userId)
                         .map((row) => ({ value: row.id, label: row.name })),
                     },
                     { name: "notes", label: "Notes", textarea: true },
@@ -693,6 +713,12 @@ export default async function FacilityDetailPage({
                 ].map((value) => ({ value, label: labelize(value) })),
               },
               { name: "reason", label: "Reason", textarea: true, required: true },
+              {
+                name: "updatedAt",
+                label: "Current timestamp",
+                type: "hidden",
+                defaultValue: facility.updatedAt.toISOString(),
+              },
             ]}
           />
         </Card>

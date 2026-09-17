@@ -1,6 +1,6 @@
 "use client";
 
-/** Confirm delete + optional edit dialog for list/detail rows. */
+/** Confirm archive/delete + optional edit dialog for list/detail rows. */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,17 @@ type Field = {
 export function DeleteButton({
   path,
   label = "Delete",
+  confirmTitle,
+  confirmDescription,
+  successToast,
   redirectTo,
   compact = false,
 }: {
   path: string;
   label?: string;
+  confirmTitle?: string;
+  confirmDescription?: string;
+  successToast?: string;
   redirectTo?: string;
   compact?: boolean;
 }) {
@@ -39,12 +45,12 @@ export function DeleteButton({
     setPending(true);
     try {
       await apiRequest(path, undefined, "DELETE");
-      toast.success("Deleted");
+      toast.success(successToast || (label === "Archive" ? "Archived" : "Deleted"));
       setOpen(false);
       if (redirectTo) router.push(redirectTo);
       else router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete");
+      toast.error(error instanceof Error ? error.message : `Could not ${label.toLowerCase()}`);
     } finally {
       setPending(false);
     }
@@ -65,9 +71,12 @@ export function DeleteButton({
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
-        title="Delete this record?"
-        description="This cannot be undone. Related history stays in the audit trail."
-        confirmLabel="Delete"
+        title={confirmTitle || `Delete this record?`}
+        description={
+          confirmDescription ||
+          "This cannot be undone. Related history stays in the audit trail."
+        }
+        confirmLabel={label}
         danger
         pending={pending}
         onConfirm={onDelete}
@@ -84,6 +93,10 @@ export function EditDeleteControls({
   canDelete = true,
   compact = false,
   title = "Edit",
+  deleteLabel = "Delete",
+  deleteConfirmTitle,
+  deleteConfirmDescription,
+  deleteSuccessToast,
 }: {
   path: string;
   method?: string;
@@ -92,6 +105,10 @@ export function EditDeleteControls({
   canDelete?: boolean;
   compact?: boolean;
   title?: string;
+  deleteLabel?: string;
+  deleteConfirmTitle?: string;
+  deleteConfirmDescription?: string;
+  deleteSuccessToast?: string;
 }) {
   const [open, setOpen] = useState(false);
   if (!canEdit && !canDelete) return null;
@@ -110,7 +127,16 @@ export function EditDeleteControls({
           {compact ? <Pencil className="h-3.5 w-3.5" /> : title}
         </Button>
       ) : null}
-      {canDelete ? <DeleteButton path={path} compact={compact} /> : null}
+      {canDelete ? (
+        <DeleteButton
+          path={path}
+          compact={compact}
+          label={deleteLabel}
+          confirmTitle={deleteConfirmTitle}
+          confirmDescription={deleteConfirmDescription}
+          successToast={deleteSuccessToast}
+        />
+      ) : null}
       {canEdit ? (
         <Dialog open={open} onOpenChange={setOpen} title={title}>
           <SimpleForm

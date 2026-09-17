@@ -1,8 +1,9 @@
 /**
  * Auth.js credentials login. Wired at src/app/api/auth/[...nextauth]/route.ts.
  *
- * Session is a 30-minute JWT. Failed logins lock the account after 5 tries
- * (src/auth.ts lockDuration). Password hashing: src/lib/password.ts.
+ * Session is a 30-minute JWT. jwt callback reloads isActive / role / mustResetPassword
+ * from the DB so deactivation and force-reset take effect before maxAge.
+ * Failed logins lock the account after 5 tries. Password hashing: src/lib/password.ts.
  */
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
@@ -106,14 +107,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.mustResetPassword = Boolean(
           (user as { mustResetPassword?: boolean }).mustResetPassword,
         );
+        return token;
       }
+
+      if (!token.id) return token;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: String(token.id) },
+        select: {
+          isActive: true,
+          role: true,
+          mustResetPassword: true,
+          name: true,
+          email: true,
+          lockedUntil: true,
+        },
+      });
+
+      if (
+        !dbUser ||
+        !dbUser.isActive ||
+        (dbUser.lockedUntil && dbUser.lockedUntil > new Date())
+      ) {
+        return { ...token, error: "inactive" as const };
+      }
+
+      token.role = dbUser.role as UserRole;
+      token.mustResetPassword = dbUser.mustResetPassword;
+      token.name = dbUser.name;
+      token.email = dbUser.email;
+      delete token.error;
       return token;
     },
     async session({ session, token }) {
+      if (token.error || !token.id) {
+        session.user = undefined as never;
+        return session;
+      }
       if (session.user) {
-        session.user.id = String(token.id ?? "");
+        session.user.id = String(token.id);
         session.user.role = token.role as UserRole;
         session.user.mustResetPassword = Boolean(token.mustResetPassword);
+        if (token.name) session.user.name = String(token.name);
+        if (token.email) session.user.email = String(token.email);
       }
       return session;
     },

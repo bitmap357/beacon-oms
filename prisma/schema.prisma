@@ -218,6 +218,7 @@ model Incident {
   closedAt          DateTime?
   reportedAt        DateTime        @default(now())
   source            String          @default("NATIVE")
+  archivedAt        DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -232,6 +233,7 @@ model Incident {
   @@index([branchId])
   @@index([priority, status])
   @@index([title])
+  @@index([archivedAt])
 }
 
 // Field-level change log for an incident (status, assignee, etc.).

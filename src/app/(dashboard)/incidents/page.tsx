@@ -32,6 +32,7 @@ export default async function IncidentsPage({
     add?: string;
     from?: string;
     to?: string;
+    archived?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -40,10 +41,12 @@ export default async function IncidentsPage({
   const scopedIds = query.facilityId && ids.includes(query.facilityId) ? [query.facilityId] : ids;
   const statusValues = incidentStatusesForFilter(query.status);
   const dates = reportedAtFilter(query.from, query.to);
+  const includeArchived = query.archived === "1";
   const [incidents, facilities, users] = await Promise.all([
     prisma.incident.findMany({
       where: {
         facilityId: { in: scopedIds },
+        ...(includeArchived ? {} : { archivedAt: null }),
         ...(query.mine === "1" ? { assigneeId: user.id } : {}),
         ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
         ...(statusValues ? { status: { in: statusValues } } : {}),
@@ -128,6 +131,7 @@ export default async function IncidentsPage({
           { name: "from", label: "From", kind: "date" },
           { name: "to", label: "To", kind: "date" },
           { name: "withoutActions", label: "Without actions", kind: "checkbox" },
+          { name: "archived", label: "Include archived", kind: "checkbox", checkedValue: "1" },
         ]}
       />
       {incidents.length === 0 ? (
@@ -141,6 +145,7 @@ export default async function IncidentsPage({
           canUpdate={canUpdate}
           canClose={canClose}
           canAddAction={canAddAction}
+          canAssign={hasPermission(user.role, "incidents.assign")}
           users={users}
           incidents={incidents.map((row) => ({
             id: row.id,
@@ -152,6 +157,7 @@ export default async function IncidentsPage({
             branchName: row.branch?.name,
             assigneeId: row.assigneeId,
             assigneeName: row.assignee?.name,
+            archivedAt: row.archivedAt?.toISOString() ?? null,
             createdAt: row.createdAt.toISOString(),
             reportedAt: row.reportedAt.toISOString(),
             updatedAt: row.updatedAt.toISOString(),
@@ -172,6 +178,7 @@ export default async function IncidentsPage({
               users={users}
               defaultFacilityId={query.facilityId}
               canClose={canClose}
+              canAssign={hasPermission(user.role, "incidents.assign")}
             />
           </div>
           <div>

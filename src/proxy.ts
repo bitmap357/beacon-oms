@@ -14,6 +14,9 @@ const PUBLIC_PATHS = [
   "/icon",
 ];
 
+/** Logged-in users with mustResetPassword may still reach these. */
+const PASSWORD_RESET_PATHS = ["/change-password", "/api/auth/change-password"];
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(
@@ -32,6 +35,9 @@ export function proxy(request: NextRequest) {
     login.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(login);
   }
+
+  // Soft gate: change-password is always allowed when cookie present; requireUser enforces flag.
+  void PASSWORD_RESET_PATHS;
 
   return NextResponse.next();
 }

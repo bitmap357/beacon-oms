@@ -28,15 +28,15 @@ function relatedHref(row: NotificationRow) {
     case "Incident":
       return `/incidents/${row.relatedId}`;
     case "Action":
-      return `/actions`;
+      return `/actions?highlight=${row.relatedId}`;
     case "Report":
       return `/reports/${row.relatedId}`;
     case "Facility":
       return `/facilities/${row.relatedId}`;
     case "Handover":
-      return `/handovers`;
+      return `/handovers?highlight=${row.relatedId}`;
     case "QARecord":
-      return `/qa`;
+      return `/qa?highlight=${row.relatedId}`;
     default:
       return "/notifications";
   }
@@ -70,11 +70,6 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
     setUnread(initialUnread);
   }, [initialUnread]);
 
-  const close = useCallback(() => {
-    setOpen(false);
-    triggerRef.current?.focus();
-  }, []);
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -92,10 +87,44 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
     }
   }, []);
 
+  const refreshUnread = useCallback(async () => {
+    try {
+      const data = await apiRequest<{
+        notifications: NotificationRow[];
+        unreadCount: number;
+      }>("/api/notifications?limit=1", undefined, "GET");
+      setUnread(data.unreadCount);
+      if (open) setRows(data.notifications.length ? data.notifications : null);
+    } catch {
+      // Keep the last known badge; next open/focus retries.
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     void load();
   }, [open, load]);
+
+  useEffect(() => {
+    function onFocus() {
+      if (document.visibilityState === "visible") void refreshUnread();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshUnread();
+    }, 90_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.clearInterval(timer);
+    };
+  }, [refreshUnread]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!open) return;

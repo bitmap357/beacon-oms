@@ -34,7 +34,7 @@ export async function calculateVisitRecommendation(
         select: { date: true },
       }),
       client.incident.count({
-        where: { facilityId, status: { in: [...OPEN] } },
+        where: { facilityId, archivedAt: null, status: { in: [...OPEN] } },
       }),
       client.action.count({
         where: {
@@ -46,6 +46,7 @@ export async function calculateVisitRecommendation(
       client.incident.count({
         where: {
           facilityId,
+          archivedAt: null,
           status: { in: [...OPEN] },
           priority: "CRITICAL",
         },
@@ -53,6 +54,7 @@ export async function calculateVisitRecommendation(
       client.incident.count({
         where: {
           facilityId,
+          archivedAt: null,
           status: { in: [...OPEN] },
           priority: "HIGH",
         },

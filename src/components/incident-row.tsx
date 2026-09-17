@@ -1,7 +1,7 @@
 "use client";
 
 /** Inline status + add-action + optional comment on the incidents list. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,10 @@ import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
 
+function asIso(value: string | Date) {
+  return typeof value === "string" ? value : value.toISOString();
+}
+
 type IncidentRowData = {
   id: string;
   status: string;
@@ -26,6 +30,7 @@ type IncidentRowData = {
   branchName?: string | null;
   assigneeId?: string | null;
   assigneeName?: string | null;
+  archivedAt?: string | null;
   createdAt: string;
   reportedAt: string;
   updatedAt: string;
@@ -40,6 +45,7 @@ type IncidentRowProps = {
   canUpdate: boolean;
   canClose: boolean;
   canAddAction: boolean;
+  canAssign?: boolean;
   variant?: "row" | "card";
 };
 
@@ -50,6 +56,7 @@ export function IncidentInbox({
   canUpdate,
   canClose,
   canAddAction,
+  canAssign = false,
 }: {
   incidents: IncidentRowData[];
   users: { id: string; name: string }[];
@@ -57,8 +64,9 @@ export function IncidentInbox({
   canUpdate: boolean;
   canClose: boolean;
   canAddAction: boolean;
+  canAssign?: boolean;
 }) {
-  const shared = { users, canManage, canUpdate, canClose, canAddAction };
+  const shared = { users, canManage, canUpdate, canClose, canAddAction, canAssign };
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -98,24 +106,45 @@ export function IncidentRow({
   canUpdate,
   canClose,
   canAddAction,
+  canAssign: _canAssign = false,
   variant = "row",
 }: IncidentRowProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [commenting, setCommenting] = useState(false);
-  const statuses = incidentStatusOptions(canClose);
   const currentStatus = String(canonicalIncidentStatus(incident.status));
+  const [status, setStatus] = useState(currentStatus);
+  const [updatedAt, setUpdatedAt] = useState(incident.updatedAt);
+  const statuses = incidentStatusOptions(canClose, status);
+  const isArchived = Boolean(incident.archivedAt);
 
-  async function onStatus(status: string) {
-    if (status === currentStatus) return;
+  useEffect(() => {
+    setStatus(String(canonicalIncidentStatus(incident.status)));
+    setUpdatedAt(incident.updatedAt);
+  }, [incident.status, incident.updatedAt]);
+
+  async function onStatus(next: string) {
+    if (next === status) return;
+    const previous = status;
+    setStatus(next);
     try {
-      await apiRequest(`/api/incidents/${incident.id}`, {
-        status,
-        updatedAt: incident.updatedAt,
-      }, "PATCH");
+      const data = await apiRequest<{
+        incident: { status: string; updatedAt: string };
+      }>(
+        `/api/incidents/${incident.id}`,
+        { status: next, updatedAt },
+        "PATCH",
+      );
+      if (data.incident?.updatedAt) {
+        setUpdatedAt(asIso(data.incident.updatedAt));
+      }
+      if (data.incident?.status) {
+        setStatus(String(canonicalIncidentStatus(data.incident.status)));
+      }
       toast.success("Status updated");
       router.refresh();
     } catch (error) {
+      setStatus(previous);
       toast.error(error instanceof Error ? error.message : "Could not update");
     }
   }
@@ -154,13 +183,13 @@ export function IncidentRow({
 
   const statusControl = canUpdate ? (
     <Select
-      defaultValue={currentStatus}
+      value={status}
       onChange={(event) => onStatus(event.target.value)}
       aria-label="Incident status"
     >
-      {statuses.map((status) => (
-        <option key={status} value={status}>
-          {labelIncidentStatus(status)}
+      {statuses.map((value) => (
+        <option key={value} value={value}>
+          {labelIncidentStatus(value)}
         </option>
       ))}
     </Select>
@@ -195,10 +224,14 @@ export function IncidentRow({
           {compact ? null : adding ? "Close" : "Add action"}
         </Button>
       ) : null}
-      {canManage ? (
+      {canManage && !isArchived ? (
         <EditDeleteControls
           compact={compact}
           path={`/api/incidents/${incident.id}`}
+          deleteLabel="Archive"
+          deleteConfirmTitle="Archive this incident?"
+          deleteConfirmDescription="The incident is hidden from default lists. Comments and history are kept."
+          deleteSuccessToast="Archived"
           fields={[
             {
               name: "description",

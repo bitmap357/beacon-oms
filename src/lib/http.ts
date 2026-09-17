@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import type { SessionUser } from "@/lib/permissions";
 import { hasPermission, type Permission } from "@/lib/permissions";
+import { loadFreshSessionUser, type FreshSessionUser } from "@/lib/fresh-session";
 
 export class HttpError extends Error {
   status: number;
@@ -40,12 +41,21 @@ export function errorResponse(error: unknown) {
   return json({ error: "Something went wrong" }, 500);
 }
 
-export async function requireApiUser() {
+export async function requireApiUser(options?: {
+  allowPasswordReset?: boolean;
+}): Promise<FreshSessionUser> {
   const session = await auth();
   if (!session?.user?.id) {
     throw new HttpError(401, "Session expired. Sign in again.");
   }
-  return session.user as SessionUser;
+  const fresh = await loadFreshSessionUser(session.user.id);
+  if (!fresh) {
+    throw new HttpError(401, "Session expired. Sign in again.");
+  }
+  if (fresh.mustResetPassword && !options?.allowPasswordReset) {
+    throw new HttpError(403, "Password reset required.");
+  }
+  return fresh;
 }
 
 export function requireApiPermission(user: SessionUser, permission: Permission) {
@@ -60,9 +70,12 @@ export function parseUpdatedAt(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** Optimistic concurrency: updatedAt is required on PATCH bodies. */
 export function assertUnchanged(current: Date, incoming?: string | null) {
   const parsed = parseUpdatedAt(incoming ?? null);
-  if (!parsed) return;
+  if (!parsed) {
+    throw new HttpError(400, "updatedAt is required. Refresh and try again.");
+  }
   if (Math.abs(current.getTime() - parsed.getTime()) > 1000) {
     throw new HttpError(
       409,

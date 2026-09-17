@@ -24,6 +24,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: UserRole;
     mustResetPassword?: boolean;
+    error?: "inactive";
   }
 }
 

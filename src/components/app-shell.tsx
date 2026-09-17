@@ -30,17 +30,23 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn, formatRole } from "@/lib/utils";
 import type { UserRole } from "@/lib/db-types";
+import { hasPermission, type Permission } from "@/lib/permissions";
 
-const NAV = [
+const NAV: Array<{
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  permission?: Permission;
+}> = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/facilities", label: "Facilities", icon: Building2 },
   { href: "/incidents", label: "Incidents", icon: Siren },
   { href: "/actions", label: "Actions", icon: ClipboardCheck },
   { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/qa", label: "QA", icon: Activity },
-  { href: "/handovers", label: "Handovers", icon: ArrowLeftRight },
+  { href: "/qa", label: "QA", icon: Activity, permission: "qa.manage" },
+  { href: "/handovers", label: "Handovers", icon: ArrowLeftRight, permission: "handovers.manage" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, permission: "analytics.view" },
 ];
 
 export function AppShell({
@@ -67,6 +73,13 @@ export function AppShell({
             { href: "/admin/organizations", label: "Organizations", icon: Building2 },
           ]
         : [];
+
+  const navItems = [
+    ...NAV.filter(
+      (item) => !item.permission || hasPermission(user.role, item.permission),
+    ),
+    ...adminNav,
+  ];
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -106,7 +119,7 @@ export function AppShell({
           </Button>
         </div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-          {[...NAV, ...adminNav].map((item) => {
+          {navItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (

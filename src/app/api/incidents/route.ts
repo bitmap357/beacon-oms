@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     const assigneeId = url.searchParams.get("assigneeId");
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
+    const includeArchived = url.searchParams.get("archived") === "1";
     const statusValues = incidentStatusesForFilter(status);
     const dates = reportedAtFilter(from, to);
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
     const incidents = await prisma.incident.findMany({
       where: {
         facilityId: facilityId ? facilityId : { in: ids },
+        ...(includeArchived ? {} : { archivedAt: null }),
         ...(statusValues ? { status: { in: statusValues } } : {}),
         ...(priority ? { priority: priority as never } : {}),
         ...(assigneeId ? { assigneeId } : {}),
@@ -62,6 +64,9 @@ export async function POST(request: Request) {
     }
     if (body.status === "CLOSED" && !hasPermission(user.role, "qa.manage")) {
       throw new HttpError(403, "Only PM/QA can close an incident");
+    }
+    if (body.assigneeId) {
+      requireApiPermission(user, "incidents.assign");
     }
     const meta = requestMeta(request);
     const incident = await prisma.$transaction(async (tx) => {

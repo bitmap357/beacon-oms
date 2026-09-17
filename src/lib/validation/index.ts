@@ -81,6 +81,10 @@ export const facilitySchema = z.object({
   updatedAt: z.string().optional(),
 });
 
+export const facilityPatchSchema = facilitySchema.partial().extend({
+  updatedAt: z.string().min(1, "updatedAt is required"),
+});
+
 export const branchSchema = z.object({
   name: z.string().trim().min(2).max(160),
   location: optionalText,
@@ -105,7 +109,7 @@ export const statusOverrideSchema = z.object({
   ]),
   reason: z.string().trim().min(8).max(500),
   clear: z.boolean().optional(),
-  updatedAt: z.string().optional(),
+  updatedAt: z.string().min(1, "updatedAt is required"),
 });
 
 export const assignmentSchema = z.object({
@@ -116,6 +120,12 @@ export const assignmentSchema = z.object({
     z.boolean().optional(),
   ),
   updatedAt: z.string().optional(),
+});
+
+export const assignmentPatchSchema = z.object({
+  isLead: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  updatedAt: z.string().min(1, "updatedAt is required"),
 });
 
 // Calendar visits POST this with type: "SITE_VISIT".
@@ -161,6 +171,7 @@ export const incidentPatchSchema = incidentSchema.partial().extend({
   status: incidentStatusSchema.optional(),
   resolutionInfo: z.string().optional().nullable(),
   comment: z.string().trim().optional().nullable(),
+  updatedAt: z.string().min(1, "updatedAt is required"),
 });
 
 export const incidentCommentSchema = z.object({
@@ -182,6 +193,10 @@ export const actionSchema = z.object({
     .enum(["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "COMPLETED", "CANCELLED"])
     .optional(),
   updatedAt: z.string().optional(),
+});
+
+export const actionPatchSchema = actionSchema.partial().extend({
+  updatedAt: z.string().min(1, "updatedAt is required"),
 });
 
 export const reportSchema = z.object({
@@ -215,6 +230,6 @@ export const qaRecordSchema = z.object({
 
 export const handoverSchema = z.object({
   fromUserId: z.string().optional().nullable(),
-  toUserId: z.string().optional().nullable(),
+  toUserId: z.string().min(1, "Choose who receives the handover"),
   notes: z.string().optional().nullable(),
 });

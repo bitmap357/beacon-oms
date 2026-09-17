@@ -90,8 +90,27 @@ export function mergeStatusCounts(
   }));
 }
 
-export function incidentStatusOptions(canClose: boolean): IncidentStatus[] {
-  return canClose ? [...INCIDENT_STATUSES] : [...OPEN_INCIDENT_STATUSES];
+/**
+ * Statuses a role may pick in UI. Always include `currentStatus` when it is a
+ * known incident status missing from the role’s list (e.g. CLOSED for developers)
+ * so the control displays the real value instead of falling back to the first option.
+ */
+export function incidentStatusOptions(
+  canClose: boolean,
+  currentStatus?: string | null,
+): IncidentStatus[] {
+  const base: IncidentStatus[] = canClose
+    ? [...INCIDENT_STATUSES]
+    : [...OPEN_INCIDENT_STATUSES];
+  if (!currentStatus) return base;
+  const canonical = canonicalIncidentStatus(currentStatus);
+  if (
+    INCIDENT_STATUSES.includes(canonical as IncidentStatus) &&
+    !base.includes(canonical as IncidentStatus)
+  ) {
+    return [...base, canonical as IncidentStatus];
+  }
+  return base;
 }
 
 export function dateRange(from?: string | null, to?: string | null) {

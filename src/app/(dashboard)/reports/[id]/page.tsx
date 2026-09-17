@@ -115,6 +115,9 @@ export default async function ReportDetailPage({
           </div>
         }
       />
+      <p className="mb-4 text-[13px] text-slate">
+        PDF is the formatted client-facing export. Word and Excel are data extracts (tables/titles).
+      </p>
       <Card className="mb-4 p-5">
         <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>

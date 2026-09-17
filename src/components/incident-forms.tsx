@@ -26,11 +26,13 @@ export function IncidentForm({
   users,
   defaultFacilityId,
   canClose,
+  canAssign = false,
 }: {
   facilities: FacilityOption[];
   users: { id: string; name: string }[];
   defaultFacilityId?: string;
   canClose: boolean;
+  canAssign?: boolean;
 }) {
   const router = useRouter();
   const [facilityId, setFacilityId] = useState(
@@ -51,7 +53,7 @@ export function IncidentForm({
         status: formData.get("status"),
         reportedAt: formData.get("reportedAt"),
         priority: formData.get("priority") || "MEDIUM",
-        assigneeId: formData.get("assigneeId") || null,
+        assigneeId: canAssign ? formData.get("assigneeId") || null : null,
         dueDate: formData.get("dueDate") || null,
       });
       toast.success("Incident created");
@@ -116,17 +118,19 @@ export function IncidentForm({
           <option value="CRITICAL">Critical</option>
         </Select>
       </div>
-      <div>
-        <Label>Assignee (optional)</Label>
-        <Select name="assigneeId">
-          <option value="">Unassigned</option>
-          {users.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {canAssign ? (
+        <div>
+          <Label>Assignee (optional)</Label>
+          <Select name="assigneeId">
+            <option value="">Unassigned</option>
+            {users.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
       <div>
         <Label>Due date (optional)</Label>
         <Input name="dueDate" type="date" />

@@ -10,7 +10,7 @@ import {
   requireApiUser,
 } from "@/lib/http";
 import { assertFacilityAccess } from "@/lib/permissions";
-import { facilitySchema } from "@/lib/validation";
+import { facilityPatchSchema } from "@/lib/validation";
 
 export async function GET(
   _request: Request,
@@ -47,7 +47,7 @@ export async function PATCH(
     requireApiPermission(user, "facilities.manage");
     const { id } = await context.params;
     await assertFacilityAccess(user, id);
-    const body = facilitySchema.partial().parse(await request.json());
+    const body = facilityPatchSchema.parse(await request.json());
     const previous = await prisma.facility.findUnique({ where: { id } });
     if (!previous) return json({ error: "Not found" }, 404);
     assertUnchanged(previous.updatedAt, body.updatedAt);

@@ -1,4 +1,4 @@
-/** Redis rate limits for login/reset/export. If REDIS_URL is missing, checks are skipped. */
+/** Redis rate limits for login/reset/export. Auth-sensitive routes fail closed in production without Redis. */
 import Redis from "ioredis";
 
 const globalForRedis = globalThis as unknown as { redis?: Redis };
@@ -16,19 +16,27 @@ function getRedis() {
   return globalForRedis.redis;
 }
 
+function failOpenAllowed() {
+  return process.env.NODE_ENV !== "production";
+}
+
 export async function rateLimit(
   key: string,
   limit: number,
   windowSec: number,
 ) {
   const redis = getRedis();
-  if (!redis) return { ok: true, remaining: limit };
+  if (!redis) {
+    if (failOpenAllowed()) return { ok: true, remaining: limit };
+    return { ok: false, remaining: 0 };
+  }
   try {
     const count = await redis.incr(key);
     if (count === 1) await redis.expire(key, windowSec);
     return { ok: count <= limit, remaining: Math.max(0, limit - count) };
   } catch {
-    return { ok: true, remaining: limit };
+    if (failOpenAllowed()) return { ok: true, remaining: limit };
+    return { ok: false, remaining: 0 };
   }
 }
 

@@ -40,24 +40,99 @@ export default async function IncidentDetailPage({
   if (!incident) notFound();
   await assertFacilityAccess(user, incident.facilityId);
   const canManage = hasPermission(user.role, "incidents.manage");
-  const canUpdate = hasPermission(user.role, "incidents.create") || canManage;
+  const canAssign = hasPermission(user.role, "incidents.assign");
+  const canUpdate =
+    !incident.archivedAt &&
+    (hasPermission(user.role, "incidents.create") || canManage);
   const canClose = hasPermission(user.role, "qa.manage");
-  const canAddAction = hasPermission(user.role, "actions.manage");
+  const canAddAction = !incident.archivedAt && hasPermission(user.role, "actions.manage");
   const users = await prisma.user.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
   });
 
+  const updateFields = [
+    {
+      name: "status",
+      label: "Status",
+      options: incidentStatusOptions(
+        canClose,
+        canonicalIncidentStatus(incident.status),
+      ).map((value) => ({
+        value,
+        label: labelIncidentStatus(value),
+      })),
+      defaultValue: String(canonicalIncidentStatus(incident.status)),
+    },
+    {
+      name: "priority",
+      label: "Priority",
+      options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
+        value,
+        label: labelize(value),
+      })),
+      defaultValue: incident.priority,
+    },
+    {
+      name: "description",
+      label: "Incident",
+      textarea: true,
+      required: true,
+      defaultValue: incident.description,
+    },
+    {
+      name: "reportedAt",
+      label: "Date reported",
+      type: "date",
+      required: true,
+      defaultValue: incident.reportedAt.toISOString().slice(0, 10),
+    },
+    ...(canAssign
+      ? [
+          {
+            name: "assigneeId",
+            label: "Assignee (optional)",
+            options: [
+              { value: "", label: "Unassigned" },
+              ...users.map((row) => ({ value: row.id, label: row.name })),
+            ],
+            defaultValue: incident.assigneeId || "",
+          },
+        ]
+      : []),
+    {
+      name: "resolutionInfo",
+      label: "Resolution (optional)",
+      textarea: true,
+      defaultValue: incident.resolutionInfo || "",
+    },
+    {
+      name: "updatedAt",
+      label: "Current timestamp",
+      type: "hidden",
+      defaultValue: incident.updatedAt.toISOString(),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
         title={incidentLabel(incident)}
-        description={`${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}`}
+        description={`${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}${incident.archivedAt ? " · Archived" : ""}`}
         illustration="/brand/illustrations/page-incidents.png"
         actions={
           <div className="flex items-center gap-2">
             <PriorityPill priority={incident.priority} />
-            {canManage ? <DeleteButton path={`/api/incidents/${incident.id}`} redirectTo="/incidents" /> : null}
+            {canManage && !incident.archivedAt ? (
+              <DeleteButton
+                path={`/api/incidents/${incident.id}`}
+                label="Archive"
+                confirmTitle="Archive this incident?"
+                confirmDescription="The incident is hidden from default lists. Comments and history are kept."
+                successToast="Archived"
+                redirectTo="/incidents"
+              />
+            ) : null}
           </div>
         }
       />
@@ -70,6 +145,7 @@ export default async function IncidentDetailPage({
             </Link>
             {incident.branch ? ` · ${incident.branch.name}` : ""} · reported by {incident.reporter.name} · {formatDate(incident.reportedAt)} ·{" "}
             <IncidentStatusPill status={incident.status} />
+            {!canAssign && incident.assignee ? ` · assignee ${incident.assignee.name}` : ""}
           </p>
           {incident.resolutionInfo ? (
             <p className="mt-3 text-sm">Resolution: {incident.resolutionInfo}</p>
@@ -123,7 +199,11 @@ export default async function IncidentDetailPage({
               lockIncident
             />
           ) : (
-            <p className="text-sm text-slate">You can view actions. Adding one needs action permission.</p>
+            <p className="text-sm text-slate">
+              {incident.archivedAt
+                ? "This incident is archived."
+                : "You can view actions. Adding one needs action permission."}
+            </p>
           )}
           <h2 className="font-heading mt-6 mb-2 text-[18px]">Comments</h2>
           {incident.comments.length === 0 ? (
@@ -140,7 +220,7 @@ export default async function IncidentDetailPage({
               ))}
             </ul>
           )}
-          <IncidentCommentForm incidentId={incident.id} />
+          {!incident.archivedAt ? <IncidentCommentForm incidentId={incident.id} /> : null}
           <h2 className="font-heading mt-6 mb-2 text-[18px]">History</h2>
           <ol className="space-y-2 text-sm">
             {incident.history.map((row) => (
@@ -159,68 +239,21 @@ export default async function IncidentDetailPage({
         <Card tint="gold" className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Update</h2>
           {canUpdate ? (
-          <SimpleForm
-            action={`/api/incidents/${id}`}
-            method="PATCH"
-            submitLabel="Save changes"
-            fields={[
-              {
-                name: "status",
-                label: "Status",
-                options: incidentStatusOptions(canClose).map((value) => ({
-                  value,
-                  label: labelIncidentStatus(value),
-                })),
-                defaultValue: String(canonicalIncidentStatus(incident.status)),
-              },
-              {
-                name: "priority",
-                label: "Priority",
-                options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => ({
-                  value,
-                  label: labelize(value),
-                })),
-                defaultValue: incident.priority,
-              },
-              {
-                name: "description",
-                label: "Incident",
-                textarea: true,
-                required: true,
-                defaultValue: incident.description,
-              },
-              {
-                name: "reportedAt",
-                label: "Date reported",
-                type: "date",
-                required: true,
-                defaultValue: incident.reportedAt.toISOString().slice(0, 10),
-              },
-              {
-                name: "assigneeId",
-                label: "Assignee (optional)",
-                options: [{ value: "", label: "Unassigned" }, ...users.map((row) => ({ value: row.id, label: row.name }))],
-                defaultValue: incident.assigneeId || "",
-              },
-              {
-                name: "resolutionInfo",
-                label: "Resolution (optional)",
-                textarea: true,
-                defaultValue: incident.resolutionInfo || "",
-              },
-              {
-                name: "updatedAt",
-                label: "Current timestamp",
-                type: "hidden",
-                defaultValue: incident.updatedAt.toISOString(),
-              },
-            ]}
-          />
+            <SimpleForm
+              action={`/api/incidents/${id}`}
+              method="PATCH"
+              submitLabel="Save changes"
+              fields={updateFields}
+            />
           ) : (
-            <p className="text-sm text-slate">You can add comments. Status changes need a create or manage permission.</p>
+            <p className="text-sm text-slate">
+              {incident.archivedAt
+                ? "Archived incidents are read-only."
+                : "You can add comments. Status changes need a create or manage permission."}
+            </p>
           )}
           <p className="mt-4 text-[12px] text-slate">
-            High-risk closes use optimistic locking. Refresh if someone else saved first.
+            Saves require the current updatedAt. Refresh if someone else saved first.
           </p>
           <Link className="mt-3 inline-block text-sm text-brand" href={`/qa?incidentId=${id}`}>
             Record QA

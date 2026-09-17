@@ -93,9 +93,9 @@ export default async function DashboardPage({
     prisma.facility.count({
       where: { id: { in: ids }, status: { in: ["ATTENTION_REQUIRED", "AT_RISK", "CRITICAL"] } },
     }),
-    prisma.incident.count({ where: { facilityId: { in: ids }, status: { in: [...OPEN] } } }),
+    prisma.incident.count({ where: { facilityId: { in: ids }, archivedAt: null, status: { in: [...OPEN] } } }),
     prisma.incident.count({
-      where: { facilityId: { in: ids }, status: { in: [...OPEN] }, priority: "CRITICAL" },
+      where: { facilityId: { in: ids }, archivedAt: null, status: { in: [...OPEN] }, priority: "CRITICAL" },
     }),
     prisma.action.count({
       where: {
@@ -109,7 +109,7 @@ export default async function DashboardPage({
       where: { facilityId: { in: ids }, result: { in: ["FAILED", "REQUIRES_RETEST"] } },
     }),
     prisma.incident.count({
-      where: { facilityId: { in: ids }, status: { in: [...OPEN] }, actions: { none: {} } },
+      where: { facilityId: { in: ids }, archivedAt: null, status: { in: [...OPEN] }, actions: { none: {} } },
     }),
     prisma.report.count({
       where: {
@@ -124,7 +124,7 @@ export default async function DashboardPage({
     }),
     prisma.incident.groupBy({
       by: ["status"],
-      where: { facilityId: { in: ids } },
+      where: { facilityId: { in: ids }, archivedAt: null },
       _count: { status: true },
     }),
     prisma.incident.groupBy({

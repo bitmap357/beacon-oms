@@ -2,7 +2,15 @@
  * Who can do what, and which facilities they see.
  *
  * Edit ROLE_PERMISSIONS to grant/revoke a capability.
- * Everyone can list all facilities (facilities.readAll). Filter to assigned via getAssignedFacilityIds / ?scope=assigned.
+ *
+ * Facility visibility (product decision): roles with facilities.readAll (including
+ * DEVELOPER and PM_QA) see the org-wide facility list. Assignments drive staffing,
+ * leads, and opt-in “My facilities” / ?scope=assigned filters — not a hard ACL wall
+ * for those roles. Strip facilities.readAll only if product later wants assignment-scoped ACL.
+ *
+ * incidents.assign: required to change assigneeId on create/PATCH. DEVELOPER has
+ * incidents.create (content/status) but not assign.
+ *
  * Screens call assertPermission / getAccessibleFacilityIds; APIs use the same helpers via src/lib/http.ts.
  */
 import type { UserRole } from "@/lib/db-types";

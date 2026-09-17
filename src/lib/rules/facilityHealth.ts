@@ -33,11 +33,12 @@ export async function getFacilityHealthInputs(
     unresolvedHighOver7Days,
   ] = await Promise.all([
     client.incident.count({
-      where: { facilityId, status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } },
+      where: { facilityId, archivedAt: null, status: { in: [...OPEN_INCIDENT_STATUS_QUERY] } },
     }),
     client.incident.count({
       where: {
         facilityId,
+        archivedAt: null,
         status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: { in: ["HIGH", "CRITICAL"] },
       },
@@ -45,6 +46,7 @@ export async function getFacilityHealthInputs(
     client.incident.count({
       where: {
         facilityId,
+        archivedAt: null,
         status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: "CRITICAL",
       },
@@ -66,6 +68,7 @@ export async function getFacilityHealthInputs(
     client.incident.count({
       where: {
         facilityId,
+        archivedAt: null,
         status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
         priority: { in: ["HIGH", "CRITICAL"] },
         createdAt: { lt: sevenDaysAgo },
@@ -104,6 +107,26 @@ export function calculateFacilityHealth(counts: Counts): FacilityHealth {
   }
   return "HEALTHY";
 }
+
+/** Short copy for the facility page status area (navy/gold UI). */
+export const FACILITY_HEALTH_CRITERIA = [
+  {
+    status: "HEALTHY",
+    rule: "No open incidents, no overdue actions, and no failed QA older than 7 days.",
+  },
+  {
+    status: "ATTENTION_REQUIRED",
+    rule: "At least one open incident, overdue action, or failed/retest QA older than 7 days.",
+  },
+  {
+    status: "AT_RISK",
+    rule: "3+ open incidents, 2+ high/critical open, 3+ overdue actions, or 1 high/critical open older than 7 days.",
+  },
+  {
+    status: "CRITICAL",
+    rule: "Any open critical-priority incident, or 2+ high/critical incidents open longer than 7 days.",
+  },
+] as const;
 
 export async function refreshFacilityHealth(
   facilityId: string,

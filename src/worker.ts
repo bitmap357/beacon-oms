@@ -8,6 +8,23 @@ import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { notifyUsers } from "@/lib/notifications";
 import { OPEN_ACTION_STATUSES } from "@/lib/incident-status";
 
+const DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+async function recentlyNotified(
+  userId: string,
+  type: string,
+  relatedId: string,
+) {
+  return prisma.notification.findFirst({
+    where: {
+      userId,
+      type,
+      relatedId,
+      createdAt: { gte: new Date(Date.now() - DEDUPE_WINDOW_MS) },
+    },
+  });
+}
+
 async function run() {
   const facilities = await prisma.facility.findMany({ select: { id: true, name: true } });
   for (const facility of facilities) {
@@ -18,15 +35,19 @@ async function run() {
         where: { facilityId: facility.id, isActive: true, isLead: true },
         select: { userId: true },
       });
-      await notifyUsers(
-        leads.map((row) => row.userId),
-        {
+      const recipients: string[] = [];
+      for (const row of leads) {
+        const already = await recentlyNotified(row.userId, "VISIT_DUE", facility.id);
+        if (!already) recipients.push(row.userId);
+      }
+      if (recipients.length) {
+        await notifyUsers(recipients, {
           type: "VISIT_DUE",
           message: `${facility.name}: ${visit.reason}`,
           relatedType: "Facility",
           relatedId: facility.id,
-        },
-      );
+        });
+      }
     }
   }
 
@@ -37,14 +58,7 @@ async function run() {
     },
   });
   for (const action of overdue) {
-    const already = await prisma.notification.findFirst({
-      where: {
-        userId: action.ownerId,
-        type: "ACTION_OVERDUE",
-        relatedId: action.id,
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      },
-    });
+    const already = await recentlyNotified(action.ownerId, "ACTION_OVERDUE", action.id);
     if (!already) {
       await notifyUsers([action.ownerId], {
         type: "ACTION_OVERDUE",
@@ -63,14 +77,7 @@ async function run() {
     },
   });
   for (const action of dueSoon) {
-    const already = await prisma.notification.findFirst({
-      where: {
-        userId: action.ownerId,
-        type: "ACTION_DUE_SOON",
-        relatedId: action.id,
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      },
-    });
+    const already = await recentlyNotified(action.ownerId, "ACTION_DUE_SOON", action.id);
     if (!already) {
       await notifyUsers([action.ownerId], {
         type: "ACTION_DUE_SOON",

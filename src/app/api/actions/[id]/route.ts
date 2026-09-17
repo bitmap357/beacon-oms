@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { assertUnchanged, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { assertFacilityAccess } from "@/lib/permissions";
-import { actionSchema } from "@/lib/validation";
+import { actionPatchSchema } from "@/lib/validation";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
 
 export async function GET(
@@ -36,7 +36,7 @@ export async function PATCH(
     const previous = await prisma.action.findUnique({ where: { id } });
     if (!previous) return json({ error: "Not found" }, 404);
     await assertFacilityAccess(user, previous.facilityId);
-    const body = actionSchema.partial().parse(await request.json());
+    const body = actionPatchSchema.parse(await request.json());
     assertUnchanged(previous.updatedAt, body.updatedAt);
     const completed =
       body.status === "COMPLETED" && previous.status !== "COMPLETED";

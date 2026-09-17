@@ -1,4 +1,4 @@
-/** GET/PATCH incident. Closed is only allowed for qa.manage. Developers may update open statuses. */
+/** GET/PATCH/DELETE (soft-archive) incident. Closed is only allowed for qa.manage. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import {
@@ -57,9 +57,16 @@ export async function PATCH(
     const { id } = await context.params;
     const previous = await prisma.incident.findUnique({ where: { id } });
     if (!previous) return json({ error: "Not found" }, 404);
+    if (previous.archivedAt) throw new HttpError(400, "Archived incidents cannot be edited");
     await assertFacilityAccess(user, previous.facilityId);
     const body = incidentPatchSchema.parse(await request.json());
     assertUnchanged(previous.updatedAt, body.updatedAt);
+
+    const assigneeChanging =
+      body.assigneeId !== undefined && body.assigneeId !== previous.assigneeId;
+    if (assigneeChanging) {
+      requireApiPermission(user, "incidents.assign");
+    }
 
     if (body.status && canonicalIncidentStatus(previous.status) !== body.status) {
       if (!INCIDENT_STATUSES.includes(body.status as IncidentStatus)) {
@@ -81,7 +88,7 @@ export async function PATCH(
         data: {
           ...fields,
           priority: body.priority || undefined,
-          assigneeId: body.assigneeId,
+          ...(assigneeChanging ? { assigneeId: body.assigneeId } : {}),
           status: body.status,
           dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
           reportedAt: body.reportedAt ? new Date(body.reportedAt) : undefined,
@@ -138,7 +145,7 @@ export async function PATCH(
       return next;
     });
 
-    if (body.assigneeId && body.assigneeId !== previous.assigneeId) {
+    if (assigneeChanging && body.assigneeId) {
       await notifyUsers([body.assigneeId], {
         type: "INCIDENT_ASSIGNED",
         message: `${incidentLabel(incident)} assigned`,
@@ -161,6 +168,7 @@ export async function PATCH(
   }
 }
 
+/** Soft-archive: keeps comments and history. Lists exclude archived by default. */
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -171,33 +179,36 @@ export async function DELETE(
     const { id } = await context.params;
     const previous = await prisma.incident.findUnique({ where: { id } });
     if (!previous) return json({ error: "Not found" }, 404);
+    if (previous.archivedAt) return json({ ok: true, incident: previous });
     await assertFacilityAccess(user, previous.facilityId);
     const meta = requestMeta(request);
-    await prisma.$transaction(async (tx) => {
-      await tx.incidentComment.deleteMany({ where: { incidentId: id } });
-      await tx.incidentHistory.deleteMany({ where: { incidentId: id } });
-      await tx.action.updateMany({ where: { incidentId: id }, data: { incidentId: null } });
-      await tx.qARecord.updateMany({
-        where: { relatedIncidentId: id },
-        data: { relatedIncidentId: null },
+    const incident = await prisma.$transaction(async (tx) => {
+      const next = await tx.incident.update({
+        where: { id },
+        data: { archivedAt: new Date() },
       });
-      await tx.report.updateMany({ where: { incidentId: id }, data: { incidentId: null } });
-      await tx.attachment.updateMany({
-        where: { incidentId: id },
-        data: { incidentId: null, deletedAt: new Date(), deletedById: user.id },
+      await tx.incidentHistory.create({
+        data: {
+          incidentId: id,
+          changedById: user.id,
+          fieldChanged: "archivedAt",
+          oldValue: "",
+          newValue: next.archivedAt?.toISOString() ?? "archived",
+        },
       });
-      await tx.incident.delete({ where: { id } });
       await logAudit(tx, {
         userId: user.id,
-        action: "incident.deleted",
+        action: "incident.archived",
         entityType: "Incident",
         entityId: id,
-        previousValue: { status: previous.status },
+        previousValue: { status: previous.status, archivedAt: null },
+        newValue: { status: next.status, archivedAt: next.archivedAt },
         ...meta,
       });
       await refreshFacilityHealth(previous.facilityId, tx);
+      return next;
     });
-    return json({ ok: true });
+    return json({ ok: true, incident });
   } catch (error) {
     return errorResponse(error);
   }

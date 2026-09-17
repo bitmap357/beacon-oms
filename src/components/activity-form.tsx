@@ -108,17 +108,27 @@ export function ActivityForm({
       }
       if (!activity && canWriteReport && formData.get("attachReport") === "on" && activityId) {
         const reportType = reportTypeForActivity(type);
+        const description = String(formData.get("description") || "").trim();
+        const findings = String(formData.get("findings") || "").trim();
+        const content = Object.fromEntries(
+          REPORT_SECTIONS[reportType].map((key) => {
+            const typed = String(formData.get(`content.${key}`) || "").trim();
+            if (typed) return [key, typed];
+            if (key === "visitPurpose" || key === "purpose" || key === "summary") {
+              return [key, description];
+            }
+            if (key === "findings" || key === "observations") {
+              return [key, findings || description];
+            }
+            return [key, ""];
+          }).filter(([, value]) => value),
+        );
         await apiRequest("/api/reports", {
           type: reportType,
           facilityId,
           activityId,
           date,
-          content: Object.fromEntries(
-            REPORT_SECTIONS[reportType].map((key) => [
-              key,
-              String(formData.get(`content.${key}`) || "").trim(),
-            ]).filter(([, value]) => value),
-          ),
+          content,
         });
       }
       toast.success(activity ? "Visit updated" : "Activity recorded");

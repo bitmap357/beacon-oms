@@ -4,12 +4,7 @@ import { logAudit, requestMeta } from "@/lib/audit";
 import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { assertFacilityAccess } from "@/lib/permissions";
 import { assignmentSchema } from "@/lib/validation";
-
-function assignmentTypeFromRole(role: string) {
-  if (role === "DEVELOPER") return "DEVELOPER" as const;
-  if (role === "PM_QA") return "PM_QA" as const;
-  throw new HttpError(400, "Only PM/QA and developers can be assigned to a facility");
-}
+import { assignmentTypeFromRole } from "@/lib/assignment-type";
 
 export async function GET(
   _request: Request,
@@ -58,15 +53,47 @@ export async function POST(
           data: { isLead: false },
         });
       }
-      const existing = await tx.facilityAssignment.findFirst({
+
+      // One active row per person per facility. Lead is a flag on that row.
+      const activeRows = await tx.facilityAssignment.findMany({
         where: { facilityId: id, userId: body.userId, isActive: true },
+        orderBy: { updatedAt: "desc" },
       });
-      const next = existing
-        ? await tx.facilityAssignment.update({
-            where: { id: existing.id },
-            data: { assignmentType, isLead },
-          })
-        : await tx.facilityAssignment.create({
+      const primary = activeRows[0];
+      if (activeRows.length > 1) {
+        await tx.facilityAssignment.updateMany({
+          where: {
+            id: { in: activeRows.slice(1).map((row) => row.id) },
+          },
+          data: { isActive: false, endDate: new Date(), isLead: false },
+        });
+      }
+
+      let next;
+      let createdRow = false;
+      if (primary) {
+        next = await tx.facilityAssignment.update({
+          where: { id: primary.id },
+          data: { assignmentType, isLead },
+        });
+      } else {
+        const inactive = await tx.facilityAssignment.findFirst({
+          where: { facilityId: id, userId: body.userId, isActive: false },
+          orderBy: { updatedAt: "desc" },
+        });
+        if (inactive) {
+          next = await tx.facilityAssignment.update({
+            where: { id: inactive.id },
+            data: {
+              assignmentType,
+              isLead,
+              isActive: true,
+              startDate: new Date(),
+              endDate: null,
+            },
+          });
+        } else {
+          next = await tx.facilityAssignment.create({
             data: {
               facilityId: id,
               userId: body.userId,
@@ -74,15 +101,19 @@ export async function POST(
               isLead,
             },
           });
+          createdRow = true;
+        }
+      }
+
       await logAudit(tx, {
         userId: user.id,
-        action: existing
+        action: createdRow
           ? isLead
             ? "assignment.lead_set"
-            : "assignment.updated"
+            : "assignment.created"
           : isLead
             ? "assignment.lead_set"
-            : "assignment.created",
+            : "assignment.updated",
         entityType: "FacilityAssignment",
         entityId: next.id,
         newValue: {
@@ -93,7 +124,7 @@ export async function POST(
         },
         ...meta,
       });
-      return { assignment: next, created: !existing };
+      return { assignment: next, created: createdRow };
     });
     return json({ assignment }, created ? 201 : 200);
   } catch (error) {

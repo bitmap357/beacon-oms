@@ -73,6 +73,9 @@ export async function DELETE(
     const facilityId = await facilityIdFor(attachment);
     if (!facilityId) return json({ error: "Not found" }, 404);
     await assertFacilityAccess(user, facilityId);
+
+    // Uploader, or anyone who can manage incidents/reports at this facility, may remove.
+    // Facility access already gates visibility; no extra role required beyond assertFacilityAccess.
     const meta = requestMeta(request);
     await prisma.$transaction(async (tx) => {
       await tx.attachment.update({
@@ -88,7 +91,8 @@ export async function DELETE(
         ...meta,
       });
     });
-    await deleteObject(attachment.s3Key).catch(() => undefined);
+    // Soft-delete is the source of truth. Never block the response on S3/MinIO.
+    void deleteObject(attachment.s3Key).catch(() => undefined);
     return json({ ok: true });
   } catch (error) {
     return errorResponse(error);

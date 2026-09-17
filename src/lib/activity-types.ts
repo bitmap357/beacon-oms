@@ -36,6 +36,7 @@ export function isVisitType(type: string) {
 
 export function reportTypeForActivity(type: string): ReportType {
   if (type === "TRAINING" || type === "DEPLOYMENT" || type === "QA") return type;
+  // Demonstrations, installations, system reviews, and other field work use the site-visit template.
   return "SITE_VISIT";
 }
 

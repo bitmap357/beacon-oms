@@ -1,17 +1,21 @@
 "use client";
 
 /** Make lead, make member, or remove a teammate from a facility. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/components/forms";
 import { toast } from "sonner";
 
+function asIso(value: string | Date) {
+  return typeof value === "string" ? value : new Date(value).toISOString();
+}
+
 export function AssignmentActions({
   assignmentId,
   isLead,
-  updatedAt,
+  updatedAt: initialUpdatedAt,
 }: {
   assignmentId: string;
   isLead: boolean;
@@ -20,10 +24,22 @@ export function AssignmentActions({
   const router = useRouter();
   const [endOpen, setEndOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  // Keep concurrency token fresh after Make lead / Make member so Remove still works.
+  const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
+  useEffect(() => {
+    setUpdatedAt(initialUpdatedAt);
+  }, [initialUpdatedAt]);
 
   async function patch(body: Record<string, unknown>, success: string) {
     try {
-      await apiRequest(`/api/assignments/${assignmentId}`, { ...body, updatedAt }, "PATCH");
+      const data = await apiRequest<{ assignment: { updatedAt: string } }>(
+        `/api/assignments/${assignmentId}`,
+        { ...body, updatedAt },
+        "PATCH",
+      );
+      if (data.assignment?.updatedAt) {
+        setUpdatedAt(asIso(data.assignment.updatedAt));
+      }
       toast.success(success);
       router.refresh();
     } catch (error) {
