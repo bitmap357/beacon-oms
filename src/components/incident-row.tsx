@@ -7,11 +7,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { IncidentStatusSelect } from "@/components/ui/incident-status-select";
 import { IncidentStatusPill, PriorityPill } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { apiRequest } from "@/components/forms";
 import { EditDeleteControls } from "@/components/record-actions";
-import { incidentStatusOptions, canonicalIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
+import { incidentStatusOptions, canonicalIncidentStatus } from "@/lib/incident-status";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
@@ -182,17 +183,13 @@ export function IncidentRow({
   }
 
   const statusControl = canUpdate ? (
-    <Select
+    <IncidentStatusSelect
       value={status}
-      onChange={(event) => onStatus(event.target.value)}
+      options={statuses}
+      onValueChange={onStatus}
       aria-label="Incident status"
-    >
-      {statuses.map((value) => (
-        <option key={value} value={value}>
-          {labelIncidentStatus(value)}
-        </option>
-      ))}
-    </Select>
+      size="sm"
+    />
   ) : (
     <IncidentStatusPill status={incident.status} />
   );
@@ -308,7 +305,7 @@ export function IncidentRow({
 
   if (variant === "card") {
     return (
-      <article className="rounded-2xl border border-hairline bg-surface-raised p-4">
+      <article className="interactive-row rounded-2xl border border-hairline bg-surface-raised p-4">
         <div className="flex items-start justify-between gap-3">
           <Link className="min-w-0 flex-1 font-medium text-brand" href={`/incidents/${incident.id}`}>
             {incidentLabel(incident)}

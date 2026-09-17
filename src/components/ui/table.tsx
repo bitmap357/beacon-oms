@@ -1,4 +1,4 @@
-/** Table primitives (THead, TR, TH, TD). */
+/** Table primitives (THead, TR, TH, TD) — denser ops typography. */
 import { cn } from "@/lib/utils";
 
 export function Table({
@@ -7,13 +7,24 @@ export function Table({
 }: React.HTMLAttributes<HTMLTableElement>) {
   return (
     <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
-      <table className={cn("w-full min-w-[36rem] text-left text-[15px] md:min-w-0", className)} {...props} />
+      <table
+        className={cn(
+          "w-full min-w-[36rem] text-left text-[14px] leading-snug md:min-w-0",
+          className,
+        )}
+        {...props}
+      />
     </div>
   );
 }
 
 export function THead(props: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className="bg-surface/70" {...props} />;
+  return (
+    <thead
+      className="border-b border-hairline bg-surface/80"
+      {...props}
+    />
+  );
 }
 
 export function TBody(props: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -24,7 +35,9 @@ export function TR({
   className,
   ...props
 }: React.HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("border-b border-hairline", className)} {...props} />;
+  return (
+    <tr className={cn("interactive-row border-b border-hairline last:border-b-0", className)} {...props} />
+  );
 }
 
 export function TH({
@@ -34,7 +47,7 @@ export function TH({
   return (
     <th
       className={cn(
-        "px-4 py-3 text-[12px] font-medium uppercase tracking-wide text-slate lg:px-3",
+        "px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-slate lg:px-3",
         className,
       )}
       {...props}
@@ -46,5 +59,7 @@ export function TD({
   className,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-4 py-3.5 text-ink lg:px-3 lg:py-3", className)} {...props} />;
+  return (
+    <td className={cn("px-3 py-2.5 align-middle text-ink lg:py-2.5", className)} {...props} />
+  );
 }

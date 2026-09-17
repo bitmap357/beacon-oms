@@ -5,9 +5,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { IncidentStatusSelect } from "@/components/ui/incident-status-select";
 import { toast } from "sonner";
 import { apiRequest } from "@/components/forms";
-import { incidentStatusOptions, labelIncidentStatus } from "@/lib/incident-status";
+import { incidentStatusOptions } from "@/lib/incident-status";
 import { Plus, Upload } from "lucide-react";
 
 type FacilityOption = {
@@ -71,13 +72,13 @@ export function IncidentForm({
       </div>
       <div>
         <Label>Status</Label>
-        <Select name="status" required defaultValue="NEW">
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {labelIncidentStatus(status)}
-            </option>
-          ))}
-        </Select>
+        <IncidentStatusSelect
+          name="status"
+          options={statuses}
+          defaultValue="NEW"
+          size="md"
+          aria-label="Status"
+        />
       </div>
       <div>
         <Label>Date reported</Label>

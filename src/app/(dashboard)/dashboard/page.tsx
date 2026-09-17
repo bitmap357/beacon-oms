@@ -2,6 +2,7 @@
  * Home operational picture: metrics, charts (with ChartKey legends), tables.
  * Chart colours: FACILITY_HEALTH_HEX / incidentStatusHex / actionStatusHex (same tones as pills).
  */
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Card, MetricCard } from "@/components/ui/card";
 import { StatusPill, PriorityPill, FACILITY_HEALTH_HEX, incidentStatusHex, actionStatusHex, TONE_HEX } from "@/components/ui/status-pill";
@@ -273,7 +274,7 @@ export default async function DashboardPage({
       </section>
       <section className="mb-5">
         <h2 className="mb-2.5 text-[12px] font-medium uppercase tracking-wide text-slate">Facilities</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="stagger-enter grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Facilities" value={totalFacilities} href="/facilities" icon={Building2} />
           <MetricCard label="Branches" value={branchCount} href="/facilities" icon={GitBranch} />
           <MetricCard label="Active" value={activeFacilities} href="/facilities" icon={HeartPulse} />
@@ -298,7 +299,10 @@ export default async function DashboardPage({
           <MetricCard label="Reports this month" value={reportsThisMonth} href="/reports" icon={FileText} />
         </div>
       </section>
-      <div className="grid gap-4 xl:grid-cols-3 xl:gap-6">
+      <div
+        className="section-enter grid gap-4 xl:grid-cols-3 xl:gap-6"
+        style={{ "--enter-delay": "90ms" } as CSSProperties}
+      >
         <Card className="p-5 xl:col-span-2">
           <h2 className="font-heading mb-3 text-[18px]">Incidents opened (12 weeks)</h2>
           <LineChart

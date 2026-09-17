@@ -195,7 +195,7 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
         ref={triggerRef}
         type="button"
         className={cn(
-          "relative rounded-xl p-2.5 text-ink transition-[background-color,color] duration-[180ms] hover:bg-surface",
+          "relative rounded-xl p-2.5 text-ink transition-[background-color,color,transform] duration-[var(--motion-duration)] ease-[var(--motion-ease-out)] hover:bg-surface active:scale-[0.97]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
           open && "bg-surface",
         )}
@@ -233,7 +233,7 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
             </div>
             <Link
               href="/notifications"
-              className="rounded-lg px-2 py-1.5 text-[13px] font-medium text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="rounded-lg px-2 py-1.5 text-[13px] font-medium text-brand transition-colors duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               onClick={() => setOpen(false)}
             >
               View all
@@ -270,7 +270,7 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
                       {!row.isRead ? (
                         <button
                           type="button"
-                          className="shrink-0 self-start rounded-lg px-2 py-1 text-[12px] font-medium text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          className="shrink-0 self-start rounded-lg px-2 py-1 text-[12px] font-medium text-brand transition-colors duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                           onClick={() => void markRead(row.id)}
                         >
                           Mark read
@@ -286,7 +286,7 @@ export function NotificationBell({ unread: initialUnread }: { unread: number }) 
           <div className="border-t border-hairline bg-surface/60 px-4 py-3">
             <Link
               href="/notifications"
-              className="flex min-h-10 items-center justify-center rounded-xl bg-brand px-3 text-[14px] font-medium text-white transition-colors hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="flex min-h-10 items-center justify-center rounded-xl bg-brand px-3 text-[14px] font-medium text-white transition-[background-color,transform] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] hover:bg-brand-deep active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               onClick={() => setOpen(false)}
             >
               Open notifications inbox

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { IncidentStatusSelect } from "@/components/ui/incident-status-select";
 import { toast } from "sonner";
 
 export async function apiRequest<T>(
@@ -130,6 +131,8 @@ export function SimpleForm({
     type?: string;
     required?: boolean;
     options?: { value: string; label: string }[];
+    /** TonePill status listbox instead of native select. */
+    picker?: "incident-status";
     textarea?: boolean;
     defaultValue?: string;
   }>;
@@ -173,7 +176,15 @@ export function SimpleForm({
         ) : (
           <div key={field.name} className={field.textarea ? "md:col-span-2" : ""}>
             <Label>{field.label}</Label>
-            {field.options ? (
+            {field.options && field.picker === "incident-status" ? (
+              <IncidentStatusSelect
+                name={field.name}
+                options={field.options.map((opt) => opt.value)}
+                defaultValue={field.defaultValue}
+                size="md"
+                aria-label={field.label}
+              />
+            ) : field.options ? (
               <Select name={field.name} required={field.required} defaultValue={field.defaultValue}>
                 {field.options.map((opt) => (
                   <option key={opt.value} value={opt.value}>

@@ -55,6 +55,7 @@ export default async function IncidentDetailPage({
     {
       name: "status",
       label: "Status",
+      picker: "incident-status" as const,
       options: incidentStatusOptions(
         canClose,
         canonicalIncidentStatus(incident.status),

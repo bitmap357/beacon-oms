@@ -40,6 +40,11 @@ const TONE_STYLES: Record<Tone, string> = {
   brand: "bg-status-brand-bg text-status-brand-fg",
 };
 
+/** Shared tone classes for pills and the incident status picker trigger. */
+export function tonePillClass(tone: Tone = "neutral") {
+  return TONE_STYLES[tone];
+}
+
 export function StatusPill({
   status,
   className,
@@ -51,7 +56,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-medium",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-medium leading-5 tracking-[0.01em] transition-[background-color,color] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)]",
         style ?? TONE_STYLES.neutral,
         className,
       )}
@@ -71,8 +76,8 @@ export function TonePill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-medium",
-        TONE_STYLES[tone],
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-medium leading-5 tracking-[0.01em] transition-[background-color,color] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)]",
+        tonePillClass(tone),
       )}
     >
       {children}

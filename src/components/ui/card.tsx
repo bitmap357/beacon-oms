@@ -1,4 +1,4 @@
-/** Raised surface card. */
+/** Raised surface card and metric tiles — ops desk, not default dashboard chrome. */
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-hairline bg-surface-raised shadow-[0_1px_0_rgba(28,36,48,0.04)]",
+        "rounded-2xl border border-hairline bg-surface-raised shadow-[0_1px_0_rgba(28,36,48,0.04),0_8px_24px_rgba(12,24,48,0.03)]",
         tint === "navy" && "border-l-[3px] border-l-brand",
         tint === "gold" && "border-l-[3px] border-l-gold",
         className,
@@ -34,19 +34,24 @@ export function MetricCard({
   const inner = (
     <Card
       className={cn(
-        "h-full p-4",
+        "h-full px-4 py-3.5 sm:px-5 sm:py-4",
         href &&
-          "transition-[transform,border-color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_rgba(12,24,48,0.06)]",
+          "transition-[border-color,box-shadow,transform] duration-[var(--motion-duration)] ease-[var(--motion-ease-out)] hover:border-brand/40 hover:shadow-[0_1px_0_rgba(28,36,48,0.04),0_10px_28px_rgba(12,24,48,0.06)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99]",
       )}
-    >      <div className="flex items-start justify-between gap-3">
-        <p className="text-[13px] leading-snug text-slate">{label}</p>
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate">
+          {label}
+        </p>
         {Icon ? (
-          <span className="rounded-xl bg-brand/10 p-2 text-brand">
-            <Icon className="h-4 w-4" />
+          <span className="rounded-lg bg-brand/[0.08] p-1.5 text-brand transition-colors duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)]">
+            <Icon className="h-3.5 w-3.5" />
           </span>
         ) : null}
       </div>
-      <p className="font-heading mt-2 text-[22px] leading-none text-ink lg:text-[26px]">{value}</p>
+      <p className="font-heading mt-2.5 text-[22px] leading-none tracking-tight text-ink lg:text-[24px]">
+        {value}
+      </p>
     </Card>
   );
   if (!href) return inner;

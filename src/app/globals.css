@@ -42,6 +42,12 @@
   --input: var(--hairline);
   --ring: var(--brand);
   --radius: 14px;
+  /* Motion tokens — Emil-weighted: short, transform/opacity only */
+  --motion-duration-fast: 120ms;
+  --motion-duration: 180ms;
+  --motion-duration-enter: 220ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   color-scheme: light;
 }
 
@@ -233,13 +239,88 @@ code,
   }
 }
 
+@keyframes beacon-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes beacon-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 .notification-panel {
   transform-origin: top right;
-  animation: beacon-panel-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: beacon-panel-in var(--motion-duration) var(--motion-ease-out) both;
+}
+
+.status-picker-panel {
+  transform-origin: top left;
+  animation: beacon-panel-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+.status-picker-panel--up {
+  transform-origin: bottom left;
 }
 
 .page-enter {
-  animation: beacon-page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: beacon-page-enter var(--motion-duration-enter) var(--motion-ease-out) both;
+}
+
+.section-enter {
+  animation: beacon-page-enter var(--motion-duration-enter) var(--motion-ease-out) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+.dialog-overlay {
+  animation: beacon-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+.dialog-content {
+  transform: translate(-50%, -50%);
+  animation: beacon-dialog-in var(--motion-duration) var(--motion-ease-out) both;
+}
+
+/* Light stagger for metric grids / card rows (30ms steps, capped) */
+.stagger-enter > * {
+  animation: beacon-page-enter var(--motion-duration-enter) var(--motion-ease-out) both;
+}
+.stagger-enter > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-enter > *:nth-child(2) {
+  animation-delay: 30ms;
+}
+.stagger-enter > *:nth-child(3) {
+  animation-delay: 60ms;
+}
+.stagger-enter > *:nth-child(4) {
+  animation-delay: 90ms;
+}
+.stagger-enter > *:nth-child(n + 5) {
+  animation-delay: 110ms;
+}
+
+/* Interactive surfaces */
+.interactive-row {
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+.interactive-row:hover {
+  background-color: color-mix(in srgb, var(--brand) 5%, transparent);
+}
+
+.dark .interactive-row:hover {
+  background-color: color-mix(in srgb, var(--brand) 12%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -247,7 +328,12 @@ code,
   .beacon-ring-delay,
   .beacon-sweep,
   .notification-panel,
-  .page-enter {
+  .status-picker-panel,
+  .page-enter,
+  .section-enter,
+  .dialog-overlay,
+  .dialog-content,
+  .stagger-enter > * {
     animation: none !important;
   }
 

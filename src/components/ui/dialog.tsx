@@ -24,11 +24,11 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45 data-[state=open]:animate-in data-[state=closed]:animate-out" />
+        <DialogPrimitive.Overlay className="dialog-overlay fixed inset-0 z-50 bg-black/45" />
         <DialogPrimitive.Content
           {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-[min(32rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-hairline bg-surface-raised p-5 shadow-[0_18px_50px_rgba(12,20,36,0.18)] outline-none",
+            "dialog-content fixed left-1/2 top-1/2 z-50 w-[min(32rem,calc(100vw-1.5rem))] rounded-2xl border border-hairline bg-surface-raised p-5 shadow-[0_18px_50px_rgba(12,20,36,0.18)] outline-none",
             className,
           )}
         >
