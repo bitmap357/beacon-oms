@@ -7,17 +7,10 @@ import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { TonePill } from "@/components/ui/status-pill";
+import { VisitPill } from "@/components/ui/status-pill";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { ScopeFilter } from "@/components/scope-filter";
-import { labelize } from "@/lib/utils";
 import { ListFilters } from "@/components/list-filters";
-
-function toneFor(recommendation: string) {
-  if (recommendation === "URGENT_VISIT") return "danger" as const;
-  if (recommendation === "VISIT_DUE") return "warn" as const;
-  return "neutral" as const;
-}
 
 export default async function VisitsDuePage({
   searchParams,
@@ -125,9 +118,7 @@ export default async function VisitsDuePage({
                   </TD>
                   <TD>{facility.clientOrganization.name}</TD>
                   <TD>
-                    <TonePill tone={toneFor(rec.recommendation)}>
-                      {labelize(rec.recommendation)}
-                    </TonePill>
+                    <VisitPill recommendation={rec.recommendation} />
                   </TD>
                   <TD className="font-mono text-[12px]">
                     {rec.daysSinceLastVisit == null ? "—" : rec.daysSinceLastVisit}

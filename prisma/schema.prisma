@@ -90,6 +90,8 @@ model Facility {
   contactPerson                String?
   contactPhone                 String?
   contactEmail                 String?
+  logoS3Key                    String?
+  logoFileType                 String?
   status                       String   @default("HEALTHY")
   calculatedStatus             String   @default("HEALTHY")
   statusOverride               Boolean  @default(false)

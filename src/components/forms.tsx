@@ -138,6 +138,10 @@ export function SimpleForm({
   onSuccess?: () => void;
 }) {
   const router = useRouter();
+  // Remount after router.refresh() so defaults match the server. React form actions
+  // reset uncontrolled fields to the first-mount defaults, which would otherwise
+  // overwrite a successful save (e.g. priority) on the next submit.
+  const defaultsKey = fields.map((field) => `${field.name}:${field.defaultValue ?? ""}`).join("|");
   async function onSubmit(formData: FormData) {
     try {
       const body: Record<string, unknown> = {};
@@ -162,7 +166,7 @@ export function SimpleForm({
     }
   }
   return (
-    <form action={onSubmit} className="grid gap-3 md:grid-cols-2">
+    <form key={defaultsKey} action={onSubmit} className="grid gap-3 md:grid-cols-2">
       {fields.map((field) =>
         field.type === "hidden" ? (
           <input key={field.name} type="hidden" name={field.name} value={field.defaultValue ?? ""} />

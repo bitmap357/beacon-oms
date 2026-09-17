@@ -13,6 +13,7 @@ import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { ListFilters } from "@/components/list-filters";
 import { dateRange } from "@/lib/incident-status";
+import { ReportStatusPill } from "@/components/ui/status-pill";
 
 export default async function ReportsPage({
   searchParams,
@@ -147,7 +148,9 @@ export default async function ReportsPage({
                     : formatDate(row.date)}
                 </TD>
                 <TD>{row.author.name}</TD>
-                <TD>{labelize(row.status)}</TD>
+                <TD>
+                  <ReportStatusPill status={row.status} />
+                </TD>
                 <TD className="space-x-2 text-[13px]">
                   <a className="text-brand" href={`/api/reports/${row.id}/export?format=pdf`}>
                     PDF

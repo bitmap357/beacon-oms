@@ -30,7 +30,15 @@ export const ALLOWED_MIME = new Set([
   "image/png",
 ]);
 
+export const ALLOWED_LOGO_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const LOGO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 export async function putObject(key: string, body: Buffer, contentType: string) {
   await client().send(
@@ -61,4 +69,20 @@ export async function deleteObject(key: string) {
       Key: key,
     }),
   );
+}
+
+export async function getObjectBuffer(key: string) {
+  const res = await client().send(
+    new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+    }),
+  );
+  const bytes = await res.Body?.transformToByteArray();
+  if (!bytes) throw new Error("Empty object");
+  return Buffer.from(bytes);
+}
+
+export function dataUrlFrom(buffer: Buffer, mime: string) {
+  return `data:${mime};base64,${buffer.toString("base64")}`;
 }

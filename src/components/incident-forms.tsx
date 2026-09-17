@@ -169,8 +169,10 @@ export function IncidentImportForm({
       const res = await fetch("/api/incidents/import", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error("Session expired. Sign in again.");
       if (!res.ok) throw new Error(data.error || "Import failed");
       const failed = Array.isArray(data.failed) ? data.failed.length : 0;
       toast.success(

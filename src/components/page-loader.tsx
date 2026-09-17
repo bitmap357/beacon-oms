@@ -21,11 +21,7 @@ export function BeaconLoader({
         <span className="beacon-ring pointer-events-none absolute inset-[-38%] rounded-full border border-[#e8b923]/50" />
         <span className="beacon-ring beacon-ring-delay pointer-events-none absolute inset-[-18%] rounded-full border border-[#1558d6]/40" />
         <span
-          className="beacon-sweep pointer-events-none absolute left-1/2 top-[18%] h-[70%] w-[70%] -translate-x-1/2 origin-top rounded-full"
-          style={{
-            background:
-              "conic-gradient(from 250deg, transparent 0deg, rgba(232,185,35,0.55) 40deg, transparent 80deg)",
-          }}
+          className="beacon-sweep pointer-events-none absolute inset-[-10%] rounded-full border-t-2 border-gold"
           aria-hidden
         />
         <BrandMark size={size} className="relative z-10" />

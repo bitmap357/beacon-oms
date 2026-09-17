@@ -1,9 +1,10 @@
 /**
  * Builds the OPERATIONAL report `content` object from incidents + actions in a date window.
- * Used by POST /api/reports/generate. Section keys must match REPORT_SECTIONS.OPERATIONAL.
+ * Used by POST /api/reports/generate. Narrative keys match REPORT_SECTIONS.OPERATIONAL;
+ * incidentRows / actionRows / summaryMeta / unitsEngaged are extra structured fields for the print template.
  */
 import { prisma } from "@/lib/db";
-import { incidentLabel, labelize } from "@/lib/utils";
+import { formatContact, formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { OPEN_ACTION_STATUSES, isClosedIncidentStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 
 const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
@@ -16,7 +17,14 @@ export async function buildOperationalReport(input: {
 }) {
   const facility = await prisma.facility.findUnique({
     where: { id: input.facilityId },
-    include: { clientOrganization: true, branches: true },
+    include: {
+      clientOrganization: true,
+      branches: { orderBy: { name: "asc" } },
+      assignments: {
+        where: { isActive: true },
+        include: { user: { select: { name: true, role: true } } },
+      },
+    },
   });
   if (!facility) return null;
 
@@ -72,7 +80,7 @@ export async function buildOperationalReport(input: {
 
   const outstanding = overdueActions
     .slice(0, 10)
-    .map((row) => `${row.title} — ${row.owner.name} (due ${row.dueDate.toDateString()})`)
+    .map((row) => `${row.title} — ${row.owner.name} (due ${formatDate(row.dueDate)})`)
     .join("\n");
 
   const recommendations = [
@@ -88,7 +96,17 @@ export async function buildOperationalReport(input: {
   ].join(" ");
 
   const branchLabel = branch?.name || "All branches";
-  const period = `${input.from.toDateString()} – ${input.to.toDateString()}`;
+  const period = `${formatDate(input.from)} – ${formatDate(input.to)}`;
+  const personnel = [...new Set(facility.assignments.map((row) => row.user.name))].join(", ") || "See facility assignments";
+  const engagedIds = new Set(incidents.map((row) => row.branchId).filter(Boolean));
+  const unitSource = facility.branches.length
+    ? facility.branches
+    : [{ id: null, name: facility.name }];
+  const unitsEngaged = unitSource.map((row) => ({
+    name: row.name,
+    planned: true,
+    actual: row.id ? engagedIds.has(row.id) : incidents.length > 0,
+  }));
 
   return {
     facility,
@@ -96,9 +114,11 @@ export async function buildOperationalReport(input: {
     incidents,
     actions,
     content: {
+      purpose: `Site visit and incident gathering for ${facility.name} to review operational status, collect outstanding issues, and agree follow-up actions.`,
       period,
       scope: `${facility.clientOrganization.name} · ${facility.name} · ${branchLabel}`,
       summary: `${incidents.length} incident(s) and ${actions.length} action(s) were recorded between ${period}. ${openIncidents.length} incident(s) remain open; ${overdueActions.length} action(s) are overdue.`,
+      observations: `Work in this period covered ${incidents.length} incident(s) (${openIncidents.length} still open) and ${actions.length} action(s) (${overdueActions.length} overdue).`,
       incidentCount: String(incidents.length),
       openIncidents: String(openIncidents.length),
       closedIncidents: String(closedIncidents.length),
@@ -110,6 +130,36 @@ export async function buildOperationalReport(input: {
       keyIncidents: keyIncidents || "None",
       outstandingActions: outstanding || "None",
       recommendations,
+      nextSteps: overdueActions.length
+        ? "Schedule a review with action owners to close or replan overdue items, then confirm the next visit date with the facility lead."
+        : "Confirm the next visit date with the facility lead and continue routine monitoring.",
+      conclusion: `This report summarises incidents and actions recorded at ${facility.name} between ${period}. ${openIncidents.length} incident(s) remain open at the time of writing.`,
+      contact:
+        formatContact(facility.contactPerson || facility.contactInfo, facility.contactPhone, facility.contactEmail) ||
+        "See the facility record in Beacon for contact details.",
+      summaryMeta: {
+        vendor: "Beacon OMS",
+        client: facility.clientOrganization.name,
+        facility: facility.name,
+        visitDate: period,
+        departments: branchLabel,
+        personnel,
+        compiledBy: "Beacon OMS",
+      },
+      unitsEngaged,
+      incidentRows: incidents.map((row) => ({
+        unit: row.branch?.name || facility.name,
+        issue: incidentLabel(row),
+        dateReported: formatDate(row.reportedAt || row.createdAt),
+        status: labelIncidentStatus(row.status),
+        priority: labelize(row.priority),
+      })),
+      actionRows: actions.map((row) => ({
+        title: row.title,
+        owner: row.owner.name,
+        due: formatDate(row.dueDate),
+        status: labelize(row.status),
+      })),
     },
   };
 }

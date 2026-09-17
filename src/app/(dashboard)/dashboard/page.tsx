@@ -1,10 +1,10 @@
 /**
  * Home operational picture: metrics, charts (with ChartKey legends), tables.
- * Chart colours: HEALTH_COLORS / STATUS_COLORS in this file.
+ * Chart colours: FACILITY_HEALTH_HEX / incidentStatusHex / actionStatusHex (same tones as pills).
  */
 import Link from "next/link";
 import { Card, MetricCard } from "@/components/ui/card";
-import { StatusPill, PriorityPill } from "@/components/ui/status-pill";
+import { StatusPill, PriorityPill, FACILITY_HEALTH_HEX, incidentStatusHex, actionStatusHex, TONE_HEX } from "@/components/ui/status-pill";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { ColumnChart, DonutChart, HorizontalBarChart, LineChart, ChartKey } from "@/components/charts";
 import { requireUser } from "@/lib/session";
@@ -13,6 +13,7 @@ import { getScopedFacilityIds } from "@/lib/permissions";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
 import { formatDate, incidentLabel, labelize } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
+import { DashboardGreeting } from "@/components/dashboard-greeting";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, mergeStatusCounts, labelIncidentStatus } from "@/lib/incident-status";
 import {
@@ -31,28 +32,6 @@ import {
 
 const OPEN = OPEN_INCIDENT_STATUS_QUERY;
 const OPEN_ACTIONS = OPEN_ACTION_STATUSES;
-const HEALTH_COLORS: Record<string, string> = {
-  HEALTHY: "#1D6B45",
-  ATTENTION_REQUIRED: "#854F0B",
-  AT_RISK: "#8A3A16",
-  CRITICAL: "#791F1F",
-  INACTIVE: "#5B6472",
-};
-const STATUS_COLORS: Record<string, string> = {
-  NEW: "#1558D6",
-  IN_PROGRESS: "#E8B923",
-  ON_HOLD: "#854F0B",
-  COMPLETED: "#1D6B45",
-  REOPENED: "#8A3A16",
-  CLOSED: "#5B6472",
-};
-const ACTION_COLORS: Record<string, string> = {
-  NOT_STARTED: "#5B6472",
-  IN_PROGRESS: "#1558D6",
-  BLOCKED: "#791F1F",
-  COMPLETED: "#1D6B45",
-  CANCELLED: "#9AA3B2",
-};
 
 function weekStart(date: Date) {
   const next = new Date(date);
@@ -64,13 +43,6 @@ function weekStart(date: Date) {
 function weekKey(date: Date) {
   const start = weekStart(date);
   return `${start.getMonth() + 1}/${start.getDate()}`;
-}
-
-function greetingFor(name: string) {
-  const hour = new Date().getHours();
-  const hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const first = name.split(" ")[0] || name;
-  return { hello, first };
 }
 
 function todayLabel(date: Date) {
@@ -273,19 +245,15 @@ export default async function DashboardPage({
     }),
   );
 
-  const { hello, first } = greetingFor(user.name);
-
   return (
     <div>
-      <section className="mb-8 overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
+      <section className="page-enter mb-8 overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,32rem)]">
           <div className="flex min-w-0 flex-col justify-center px-5 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
             <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-slate">
               {todayLabel(now)}
             </p>
-            <h1 className="font-heading mt-2 text-[28px] leading-[1.15] text-ink sm:text-[32px] lg:text-[40px]">
-              {hello}, <span className="text-brand">{first}</span>.
-            </h1>
+            <DashboardGreeting name={user.name} />
             <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-slate">
               {insights[0]} {insights[1]}
             </p>
@@ -340,7 +308,7 @@ export default async function DashboardPage({
             seriesName="Incidents opened"
             data={[...weekMap.entries()].map(([week, count]) => ({ week, count }))}
           />
-          <ChartKey items={[{ label: "Incidents opened", color: "#1558D6" }]} />
+          <ChartKey items={[{ label: "Incidents opened", color: TONE_HEX.brand }]} />
         </Card>
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Facility health</h2>
@@ -349,13 +317,13 @@ export default async function DashboardPage({
             data={health.map((row) => ({
               category: labelize(row.status),
               value: row._count.status,
-              color: HEALTH_COLORS[row.status] || "#1558D6",
+              color: FACILITY_HEALTH_HEX[row.status as keyof typeof FACILITY_HEALTH_HEX] || TONE_HEX.brand,
             }))}
           />
           <ChartKey
             items={health.map((row) => ({
               label: `${labelize(row.status)} (${row._count.status})`,
-              color: HEALTH_COLORS[row.status] || "#1558D6",
+              color: FACILITY_HEALTH_HEX[row.status as keyof typeof FACILITY_HEALTH_HEX] || TONE_HEX.brand,
             }))}
           />
         </Card>
@@ -366,14 +334,14 @@ export default async function DashboardPage({
             data={mergeStatusCounts(incidentStatus).map((row) => ({
               category: labelIncidentStatus(row.status),
               value: row._count.status,
-              color: STATUS_COLORS[row.status] || "#1558D6",
+              color: incidentStatusHex(row.status),
               href: `/incidents?status=${row.status}`,
             }))}
           />
           <ChartKey
             items={mergeStatusCounts(incidentStatus).map((row) => ({
               label: `${labelIncidentStatus(row.status)} (${row._count.status})`,
-              color: STATUS_COLORS[row.status] || "#1558D6",
+              color: incidentStatusHex(row.status),
               href: `/incidents?status=${row.status}`,
             }))}
           />
@@ -389,7 +357,7 @@ export default async function DashboardPage({
               count: row._count.priority,
             }))}
           />
-          <ChartKey items={[{ label: "Open incidents", color: "#1558D6" }]} />
+          <ChartKey items={[{ label: "Open incidents", color: TONE_HEX.brand }]} />
         </Card>
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Actions by status</h2>
@@ -398,13 +366,13 @@ export default async function DashboardPage({
             data={actionStatus.map((row) => ({
               category: labelize(row.status),
               value: row._count.status,
-              color: ACTION_COLORS[row.status] || "#1558D6",
+              color: actionStatusHex(row.status),
             }))}
           />
           <ChartKey
             items={actionStatus.map((row) => ({
               label: `${labelize(row.status)} (${row._count.status})`,
-              color: ACTION_COLORS[row.status] || "#1558D6",
+              color: actionStatusHex(row.status),
             }))}
           />
         </Card>
@@ -419,7 +387,7 @@ export default async function DashboardPage({
               count: row._count.incidents,
             }))}
           />
-          <ChartKey items={[{ label: "Open incidents", color: "#1558D6" }]} />
+          <ChartKey items={[{ label: "Open incidents", color: TONE_HEX.brand }]} />
         </Card>
       </div>
       <div className="mt-6 grid gap-4 xl:grid-cols-5 xl:gap-6">

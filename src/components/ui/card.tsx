@@ -11,8 +11,8 @@ export function Card({
     <div
       className={cn(
         "rounded-2xl border border-hairline bg-surface-raised shadow-[0_1px_0_rgba(28,36,48,0.04)]",
-        tint === "navy" && "border-brand/25 bg-gradient-to-b from-[#e8eefc]/70 to-surface-raised dark:from-[#152445]/80",
-        tint === "gold" && "border-gold/35 bg-gradient-to-b from-[#f8efd0]/60 to-surface-raised dark:from-[#32280f]/70",
+        tint === "navy" && "border-l-[3px] border-l-brand",
+        tint === "gold" && "border-l-[3px] border-l-gold",
         className,
       )}
       {...props}
@@ -32,8 +32,13 @@ export function MetricCard({
   icon?: ComponentType<{ className?: string }>;
 }) {
   const inner = (
-    <Card className={cn("h-full p-4", href && "transition-colors hover:border-brand/40")}>
-      <div className="flex items-start justify-between gap-3">
+    <Card
+      className={cn(
+        "h-full p-4",
+        href &&
+          "transition-[transform,border-color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_rgba(12,24,48,0.06)]",
+      )}
+    >      <div className="flex items-start justify-between gap-3">
         <p className="text-[13px] leading-snug text-slate">{label}</p>
         {Icon ? (
           <span className="rounded-xl bg-brand/10 p-2 text-brand">

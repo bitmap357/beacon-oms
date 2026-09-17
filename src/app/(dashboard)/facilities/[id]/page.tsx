@@ -21,6 +21,7 @@ import { AssignmentActions } from "@/components/assignment-actions";
 import { isClosedIncidentStatus, isOpenActionStatus, isOpenIncidentStatus, labelIncidentStatus } from "@/lib/incident-status";
 import { isVisitType, labelActivityType } from "@/lib/activity-types";
 import { Plus } from "lucide-react";
+import { FacilityLogoForm, FacilityLogoMark } from "@/components/facility-logo";
 
 export default async function FacilityDetailPage({
   params,
@@ -106,6 +107,12 @@ export default async function FacilityDetailPage({
         illustration="/brand/illustrations/page-facilities.png"
         actions={
           <div className="flex items-center gap-2">
+            <FacilityLogoMark
+              facilityId={id}
+              hasLogo={Boolean(facility.logoS3Key)}
+              name={facility.name}
+              size={48}
+            />
             <StatusPill status={facility.status} />
             {hasPermission(user.role, "facilities.manage") ? (
               <DeleteButton path={`/api/facilities/${id}`} redirectTo="/facilities" />
@@ -116,7 +123,7 @@ export default async function FacilityDetailPage({
       {staffingGaps.length ? (
         <div
           role="status"
-          className="mb-6 rounded-xl border border-[#e8b923] bg-[#e8b923]/20 px-4 py-3 text-sm text-ink"
+          className="mb-6 rounded-xl border border-gold bg-status-gold-bg px-4 py-3 text-sm text-ink"
         >
           <p className="font-medium">Staffing needed</p>
           <p className="mt-1 text-[13px] leading-relaxed">
@@ -193,7 +200,8 @@ export default async function FacilityDetailPage({
             </div>
           </dl>
           {hasPermission(user.role, "facilities.manage") ? (
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
+              <FacilityLogoForm facilityId={id} hasLogo={Boolean(facility.logoS3Key)} />
               <EditDeleteControls
                 path={`/api/facilities/${id}`}
                 canDelete={false}
@@ -227,10 +235,11 @@ export default async function FacilityDetailPage({
             </div>
           ) : null}
           <h3 className="font-heading mt-5 mb-2 text-[18px]">Current team</h3>
+          {activeTeam.length === 0 ? (
+            <p className="text-sm text-slate">No teammates assigned yet.</p>
+          ) : null}
           <ul className="space-y-1 text-sm">
-            {facility.assignments
-              .filter((row) => row.isActive)
-              .map((row) => (
+            {activeTeam.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span>
                   <Link className="text-brand" href={`/profile/${row.userId}`}>
@@ -591,6 +600,9 @@ export default async function FacilityDetailPage({
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Assignment history</h2>
+          {facility.assignments.length === 0 ? (
+            <p className="text-sm text-slate">No assignment history yet.</p>
+          ) : (
           <Table>
             <THead>
               <TR>
@@ -618,6 +630,7 @@ export default async function FacilityDetailPage({
               ))}
             </TBody>
           </Table>
+          )}
         </Card>
         <Card className="p-5">
           <h2 className="font-heading mb-3 text-[18px]">Handovers</h2>

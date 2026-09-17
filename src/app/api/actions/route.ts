@@ -1,7 +1,7 @@
 /** GET/POST follow-up actions. */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
-import { errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
+import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
 import { assertFacilityAccess, getAccessibleFacilityIds } from "@/lib/permissions";
 import { actionSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
@@ -16,7 +16,8 @@ export async function GET(request: Request) {
     const facilityId = url.searchParams.get("facilityId");
     const ownerId = url.searchParams.get("ownerId");
     const status = url.searchParams.get("status");
-    const overdue = url.searchParams.get("overdue") === "true";
+    const overdueParam = url.searchParams.get("overdue");
+    const overdue = overdueParam === "true" || overdueParam === "1";
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
     if (facilityId) await assertFacilityAccess(user, facilityId);
     const actions = await prisma.action.findMany({
@@ -51,6 +52,13 @@ export async function POST(request: Request) {
     requireApiPermission(user, "actions.manage");
     const body = actionSchema.parse(await request.json());
     await assertFacilityAccess(user, body.facilityId);
+    if (body.incidentId) {
+      const related = await prisma.incident.findFirst({
+        where: { id: body.incidentId, facilityId: body.facilityId },
+        select: { id: true },
+      });
+      if (!related) throw new HttpError(400, "Incident does not belong to this facility");
+    }
     const meta = requestMeta(request);
     const action = await prisma.$transaction(async (tx) => {
       const next = await tx.action.create({

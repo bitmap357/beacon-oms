@@ -13,7 +13,7 @@ import { ScopeFilter } from "@/components/scope-filter";
 import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { ListFilters } from "@/components/list-filters";
-import { OPEN_ACTION_STATUSES, OPEN_INCIDENT_STATUS_QUERY, dateRange } from "@/lib/incident-status";
+import { OPEN_ACTION_STATUSES, dateRange } from "@/lib/incident-status";
 
 export default async function ActionsPage({
   searchParams,
@@ -55,13 +55,9 @@ export default async function ActionsPage({
     prisma.facility.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
     prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
     prisma.incident.findMany({
-      where: {
-        facilityId: { in: ids },
-        status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
-      },
+      where: { facilityId: { in: ids } },
       select: { id: true, facilityId: true, title: true, description: true, createdAt: true, reportedAt: true },
       orderBy: { createdAt: "desc" },
-      take: 200,
     }),
   ]);
   const canManage = hasPermission(user.role, "actions.manage");

@@ -43,7 +43,7 @@ export function errorResponse(error: unknown) {
 export async function requireApiUser() {
   const session = await auth();
   if (!session?.user?.id) {
-    throw new HttpError(401, "Unauthorized");
+    throw new HttpError(401, "Session expired. Sign in again.");
   }
   return session.user as SessionUser;
 }

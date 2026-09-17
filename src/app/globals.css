@@ -21,6 +21,10 @@
   --status-critical-fg: #791f1f;
   --status-inactive-bg: #eeeeec;
   --status-inactive-fg: #5b6472;
+  --status-gold-bg: #f8efd0;
+  --status-gold-fg: #8a6a12;
+  --status-brand-bg: #e8eefc;
+  --status-brand-fg: #0b3ba8;
   --background: var(--surface);
   --foreground: var(--ink);
   --card: var(--surface-raised);
@@ -61,6 +65,10 @@
   --status-critical-fg: #f3c6c6;
   --status-inactive-bg: #161b26;
   --status-inactive-fg: #9aa3b2;
+  --status-gold-bg: #32280f;
+  --status-gold-fg: #f0c48a;
+  --status-brand-bg: #152445;
+  --status-brand-fg: #8eb4ff;
   --muted: #121a2b;
   --accent: #152445;
   --accent-foreground: #8eb4ff;
@@ -102,6 +110,10 @@
   --color-status-critical-fg: var(--status-critical-fg);
   --color-status-inactive-bg: var(--status-inactive-bg);
   --color-status-inactive-fg: var(--status-inactive-fg);
+  --color-status-gold-bg: var(--status-gold-bg);
+  --color-status-gold-fg: var(--status-gold-fg);
+  --color-status-brand-bg: var(--status-brand-bg);
+  --color-status-brand-fg: var(--status-brand-fg);
   --font-sans: var(--font-jakarta);
   --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-plex-mono);
@@ -196,4 +208,55 @@ code,
 
 .beacon-sweep {
   animation: beacon-sweep 2.8s ease-in-out infinite alternate;
+}
+
+/* Panel + page motion (Emil-weighted: short, transform/opacity only) */
+@keyframes beacon-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes beacon-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-panel {
+  transform-origin: top right;
+  animation: beacon-panel-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page-enter {
+  animation: beacon-page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beacon-ring,
+  .beacon-ring-delay,
+  .beacon-sweep,
+  .notification-panel,
+  .page-enter {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

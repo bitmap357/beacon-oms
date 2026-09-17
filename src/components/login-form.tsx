@@ -39,7 +39,7 @@ export function LoginPanel() {
             alt="Clinicians at a hospital operations desk using Beacon to track facilities, incidents, and visits"
             className="absolute inset-0 h-full w-full object-cover object-[center_35%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-[#070b14]/30 to-black/15" />
+          <div className="absolute inset-0 bg-[#070b14]/60" />
           <div className="relative z-10 flex min-h-screen w-full flex-col px-14 py-16">
             <div className="flex flex-1 items-center justify-center">
               <div className="w-full max-w-[460px] rounded-[28px] bg-[#070b14]/55 px-8 py-10 ring-1 ring-white/10 backdrop-blur-md">

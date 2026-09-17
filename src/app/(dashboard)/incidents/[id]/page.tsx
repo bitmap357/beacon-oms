@@ -32,7 +32,7 @@ export default async function IncidentDetailPage({
       assignee: true,
       history: { orderBy: { changedAt: "asc" } },
       comments: { include: { author: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
-      actions: { include: { owner: true } },
+      actions: { include: { owner: true }, orderBy: { dueDate: "asc" } },
       qaRecords: true,
       attachments: { where: { deletedAt: null } },
     },

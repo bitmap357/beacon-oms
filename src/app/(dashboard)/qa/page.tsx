@@ -14,7 +14,7 @@ import { EditDeleteControls } from "@/components/record-actions";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { dateRange, incidentStatusesForFilter } from "@/lib/incident-status";
-import { IncidentStatusPill } from "@/components/ui/status-pill";
+import { IncidentStatusPill, QaResultPill } from "@/components/ui/status-pill";
 
 export default async function QAPage({
   searchParams,
@@ -205,7 +205,9 @@ export default async function QAPage({
               {records.map((row) => (
                 <TR key={row.id}>
                   <TD>{row.facility.name}</TD>
-                  <TD>{labelize(row.result)}</TD>
+                  <TD>
+                    <QaResultPill result={row.result} />
+                  </TD>
                   <TD>{row.qaUser.name}</TD>
                   <TD className="font-mono text-[12px]">{formatDate(row.qaDate)}</TD>
                   <TD>

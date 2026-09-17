@@ -14,7 +14,7 @@ export function PageHeader({
   illustration?: string;
 }) {
   return (
-    <section className="mb-6 overflow-hidden rounded-2xl border border-hairline bg-surface-raised lg:mb-8">
+    <section className="page-enter mb-6 overflow-hidden rounded-2xl border border-hairline bg-surface-raised lg:mb-8">
       <div
         className={cn(
           "grid",

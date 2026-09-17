@@ -21,11 +21,11 @@ import {
   Users,
   BarChart3,
   ArrowLeftRight,
-  Bell,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/brand";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn, formatRole } from "@/lib/utils";
@@ -115,7 +115,7 @@ export function AppShell({
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] lg:min-h-10 lg:py-2 lg:text-[14px]",
+                  "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-[background-color,color,box-shadow] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] lg:min-h-10 lg:py-2 lg:text-[14px]",
                   active
                     ? "bg-brand/10 text-brand-deep shadow-[inset_3px_0_0_0_var(--gold)]"
                     : "text-ink hover:bg-surface",
@@ -162,16 +162,7 @@ export function AppShell({
           </form>
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:gap-3">
             <ThemeToggle />
-            <Link
-              href="/notifications"
-              className="relative rounded-xl p-2.5 hover:bg-surface"
-              aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
-            >
-              <Bell className="h-5 w-5" />
-              {unread > 0 ? (
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold" />
-              ) : null}
-            </Link>
+            <NotificationBell unread={unread} />
             <div className="hidden min-w-0 text-right lg:block">
               <p className="truncate text-[14px] text-ink">{user.name}</p>
               <p className="text-[12px] text-slate">{formatRole(user.role)}</p>

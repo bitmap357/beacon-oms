@@ -1,33 +1,135 @@
 /** PDF (Puppeteer), Word, Excel export of a ReportRecord. */
-import { Document, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  HeadingLevel,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  type FileChild,
+} from "docx";
 import ExcelJS from "exceljs";
-import { REPORT_SECTIONS, labelFor, formatReportValue, reportHtml, type ReportRecord } from "@/lib/reportTemplates";
+import {
+  REPORT_SECTIONS,
+  labelFor,
+  formatReportValue,
+  reportHtml,
+  reportTitleFor,
+  type ActionReportRow,
+  type IncidentReportRow,
+  type ReportRecord,
+  type UnitEngagedRow,
+} from "@/lib/reportTemplates";
+import { ALLOWED_LOGO_MIME, dataUrlFrom, getObjectBuffer } from "@/lib/storage";
+import { formatDate } from "@/lib/utils";
 
-export async function exportPdf(report: ReportRecord) {
+async function withLogos(report: ReportRecord, facility?: { logoS3Key: string | null; logoFileType: string | null }) {
+  if (!report.beaconLogoDataUrl) {
+    try {
+      const lockup = await readFile(path.join(process.cwd(), "public/brand/lockup.png"));
+      report.beaconLogoDataUrl = dataUrlFrom(lockup, "image/png");
+    } catch {
+      // PDF still renders the text fallback in the masthead.
+    }
+  }
+  if (!report.facilityLogoDataUrl && facility?.logoS3Key && facility.logoFileType && ALLOWED_LOGO_MIME.has(facility.logoFileType)) {
+    try {
+      const buffer = await getObjectBuffer(facility.logoS3Key);
+      report.facilityLogoDataUrl = dataUrlFrom(buffer, facility.logoFileType);
+    } catch {
+      // Fall back to Beacon-only masthead.
+    }
+  }
+  return report;
+}
+
+function chromeExecutable() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+  const candidates = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "Application", "chrome.exe"),
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+  return candidates.find((candidate) => candidate && existsSync(candidate));
+}
+
+export async function exportPdf(
+  report: ReportRecord,
+  facility?: { logoS3Key: string | null; logoFileType: string | null },
+) {
+  const payload = await withLogos(report, facility);
   const puppeteer = await import("puppeteer");
+  const executablePath = chromeExecutable();
   const browser = await puppeteer.default.launch({
     headless: true,
+    ...(executablePath ? { executablePath } : {}),
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(reportHtml(report), { waitUntil: "load" });
-    return await page.pdf({ format: "A4", printBackground: true, margin: { top: "20mm", bottom: "20mm", left: "16mm", right: "16mm" } });
+    await page.setContent(reportHtml(payload), { waitUntil: "load" });
+    return await page.pdf({
+      format: "A4",
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>",
+      footerTemplate: `<div style="font-size:9px;width:100%;padding:0 14mm;color:#5B6472;font-family:Calibri,Arial,sans-serif;display:flex;justify-content:space-between;"><span>Beacon OMS</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
+      margin: { top: "14mm", bottom: "16mm", left: "14mm", right: "14mm" },
+    });
   } finally {
     await browser.close();
   }
 }
 
+function cell(text: string, header = false) {
+  return new TableCell({
+    width: { size: 2000, type: WidthType.DXA },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 4, color: "D9DDE6" },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: "D9DDE6" },
+      left: { style: BorderStyle.SINGLE, size: 4, color: "D9DDE6" },
+      right: { style: BorderStyle.SINGLE, size: 4, color: "D9DDE6" },
+    },
+    shading: header ? { fill: "0B3BA8" } : undefined,
+    children: [
+      new Paragraph({
+        children: [new TextRun({ text, bold: header, color: header ? "FFFFFF" : "1C2430", size: 18 })],
+      }),
+    ],
+  });
+}
+
+function simpleTable(headers: string[], rows: string[][]) {
+  return new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [
+      new TableRow({ children: headers.map((header) => cell(header, true)) }),
+      ...rows.map((row) => new TableRow({ children: row.map((value) => cell(value)) })),
+    ],
+  });
+}
+
 export async function exportDocx(report: ReportRecord) {
   const children: Paragraph[] = [
     new Paragraph({
-      text: `${report.type.replaceAll("_", " ")} report`,
+      text: reportTitleFor(report.type),
       heading: HeadingLevel.TITLE,
     }),
     new Paragraph({
       children: [
         new TextRun({
-          text: `${report.facilityName} · ${report.organizationName} · ${report.date.toDateString()} · ${report.authorName}`,
+          text: `${report.facilityName} · ${report.organizationName} · ${formatDate(report.date)} · ${report.authorName}`,
           italics: true,
         }),
       ],
@@ -36,12 +138,64 @@ export async function exportDocx(report: ReportRecord) {
   for (const key of REPORT_SECTIONS[report.type]) {
     const value = report.content[key];
     const text = formatReportValue(value);
+    if (text === "—") continue;
     children.push(
       new Paragraph({ text: labelFor(key), heading: HeadingLevel.HEADING_2 }),
       new Paragraph(text),
     );
   }
-  const doc = new Document({ sections: [{ children }] });
+  const incidents = Array.isArray(report.content.incidentRows)
+    ? (report.content.incidentRows as IncidentReportRow[])
+    : [];
+  const actions = Array.isArray(report.content.actionRows)
+    ? (report.content.actionRows as ActionReportRow[])
+    : [];
+  const units = Array.isArray(report.content.unitsEngaged)
+    ? (report.content.unitsEngaged as UnitEngagedRow[])
+    : [];
+  const docChildren = [...children];
+  if (units.length) {
+    docChildren.push(new Paragraph({ text: "Units engaged", heading: HeadingLevel.HEADING_2 }));
+  }
+  const sectionChildren: FileChild[] = [...docChildren];
+  if (units.length) {
+    sectionChildren.push(
+      simpleTable(
+        ["Unit", "Planned", "Actual"],
+        units.map((row) => [String(row.name || "—"), row.planned ? "Yes" : "", row.actual ? "Yes" : ""]),
+      ),
+    );
+  }
+  if (incidents.length) {
+    sectionChildren.push(
+      new Paragraph({ text: "Issues identified / incidents", heading: HeadingLevel.HEADING_2 }),
+      simpleTable(
+        ["Unit", "Issue / incident", "Date reported", "Status", "Priority"],
+        incidents.map((row) => [
+          String(row.unit || "—"),
+          String(row.issue || "—"),
+          String(row.dateReported || "—"),
+          String(row.status || "—"),
+          String(row.priority || "—"),
+        ]),
+      ),
+    );
+  }
+  if (actions.length) {
+    sectionChildren.push(
+      new Paragraph({ text: "Actions", heading: HeadingLevel.HEADING_2 }),
+      simpleTable(
+        ["Action", "Owner", "Due", "Status"],
+        actions.map((row) => [
+          String(row.title || "—"),
+          String(row.owner || "—"),
+          String(row.due || "—"),
+          String(row.status || "—"),
+        ]),
+      ),
+    );
+  }
+  const doc = new Document({ sections: [{ children: sectionChildren }] });
   return Packer.toBuffer(doc);
 }
 
@@ -59,6 +213,26 @@ export async function exportXlsx(report: ReportRecord) {
       labelFor(key),
       formatReportValue(value === "" ? null : value).replace("—", ""),
     ]);
+  }
+  const incidents = Array.isArray(report.content.incidentRows)
+    ? (report.content.incidentRows as IncidentReportRow[])
+    : [];
+  if (incidents.length) {
+    const incidentSheet = workbook.addWorksheet("Incidents");
+    incidentSheet.addRow(["Unit", "Issue / incident", "Date reported", "Status", "Priority"]);
+    for (const row of incidents) {
+      incidentSheet.addRow([row.unit, row.issue, row.dateReported, row.status, row.priority]);
+    }
+  }
+  const actions = Array.isArray(report.content.actionRows)
+    ? (report.content.actionRows as ActionReportRow[])
+    : [];
+  if (actions.length) {
+    const actionSheet = workbook.addWorksheet("Actions");
+    actionSheet.addRow(["Action", "Owner", "Due", "Status"]);
+    for (const row of actions) {
+      actionSheet.addRow([row.title, row.owner, row.due, row.status]);
+    }
   }
   return workbook.xlsx.writeBuffer();
 }

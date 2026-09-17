@@ -29,6 +29,7 @@ export function OrganizationTree({
       regionId: string | null;
       region: { id: string; name: string } | null;
       contactPerson: string | null;
+      contactInfo?: string | null;
       contactPhone: string | null;
       contactEmail: string | null;
       status: string;
@@ -215,6 +216,13 @@ export function OrganizationTree({
                         {[facility.region?.name, facility.location || "No location set"]
                           .filter(Boolean)
                           .join(" · ")}
+                      </p>
+                      <p className="text-[12px] text-slate">
+                        {formatContact(
+                          facility.contactPerson || facility.contactInfo,
+                          facility.contactPhone,
+                          facility.contactEmail,
+                        ) || "No contact listed"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/utils";
 import { ScopeFilter } from "@/components/scope-filter";
 import { IllustratedEmpty } from "@/components/empty-state";
 import { ListFilters } from "@/components/list-filters";
+import { FacilityLogoMark } from "@/components/facility-logo";
 
 export default async function FacilitiesPage({
   searchParams,
@@ -116,7 +117,13 @@ export default async function FacilitiesPage({
               {facilities.map((row) => (
                 <TR key={row.id}>
                   <TD>
-                    <Link className="text-brand" href={`/facilities/${row.id}`}>
+                    <Link className="flex items-center gap-2 text-brand" href={`/facilities/${row.id}`}>
+                      <FacilityLogoMark
+                        facilityId={row.id}
+                        hasLogo={Boolean(row.logoS3Key)}
+                        name={row.name}
+                        size={28}
+                      />
                       {row.name}
                     </Link>
                   </TD>
