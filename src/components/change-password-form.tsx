@@ -1,36 +1,54 @@
 "use client";
 
+/**
+ * Forced / voluntary password change. Uses a normal submit handler (not form action)
+ * so validation errors render inline and the session cookie refresh is reliable.
+ */
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { CREDENTIAL_HINT } from "@/lib/password";
+import { CREDENTIAL_HINT } from "@/lib/password-policy";
 import { BrandMark } from "@/components/brand";
 import { toast } from "sonner";
 
 export function ChangePasswordForm() {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setPending(true);
+    setError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const password = String(formData.get("password") || "");
+    const confirm = String(formData.get("confirm") || "");
     try {
+      if (!password || !confirm) {
+        throw new Error("Enter and confirm your new password");
+      }
+      if (password !== confirm) {
+        throw new Error("Passwords do not match");
+      }
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: formData.get("password"),
-          confirm: formData.get("confirm"),
-        }),
+        body: JSON.stringify({ password, confirm }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not update password");
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Could not update password",
+        );
+      }
       toast.success("Password updated");
-      router.replace("/dashboard");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update password");
+      // Hard navigation so the next auth()/JWT reload sees mustResetPassword=false.
+      window.location.assign("/dashboard");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update password";
+      setError(message);
+      toast.error(message);
     } finally {
       setPending(false);
     }
@@ -50,7 +68,7 @@ export function ChangePasswordForm() {
         <p className="mb-4 text-sm text-slate">
           Your account needs a new password before you can continue.
         </p>
-        <form action={onSubmit} className="grid gap-3">
+        <form onSubmit={onSubmit} className="grid gap-3" noValidate>
           <div>
             <Label htmlFor="password">New password</Label>
             <Input
@@ -59,6 +77,7 @@ export function ChangePasswordForm() {
               type="password"
               required
               autoComplete="new-password"
+              minLength={8}
             />
           </div>
           <div>
@@ -69,9 +88,15 @@ export function ChangePasswordForm() {
               type="password"
               required
               autoComplete="new-password"
+              minLength={8}
             />
           </div>
           <p className="text-[12px] text-slate">{CREDENTIAL_HINT}</p>
+          {error ? (
+            <p className="rounded-lg border border-[#791F1F]/30 bg-[#791F1F]/10 px-3 py-2 text-[13px] text-[#791F1F]" role="alert">
+              {error}
+            </p>
+          ) : null}
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save password"}
           </Button>

@@ -168,7 +168,10 @@ export async function PATCH(
   }
 }
 
-/** Soft-archive: keeps comments and history. Lists exclude archived by default. */
+/**
+ * Flag for deletion (soft). History is preserved.
+ * Admins may also confirm archive via ?confirm=1 (sets archivedAt).
+ */
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -181,31 +184,54 @@ export async function DELETE(
     if (!previous) return json({ error: "Not found" }, 404);
     if (previous.archivedAt) return json({ ok: true, incident: previous });
     await assertFacilityAccess(user, previous.facilityId);
+    const url = new URL(request.url);
+    const confirmArchive = url.searchParams.get("confirm") === "1" && user.role === "ADMIN";
     const meta = requestMeta(request);
     const incident = await prisma.$transaction(async (tx) => {
       const next = await tx.incident.update({
         where: { id },
-        data: { archivedAt: new Date() },
+        data: confirmArchive
+          ? {
+              archivedAt: new Date(),
+              deletionRequestedAt: previous.deletionRequestedAt ?? new Date(),
+              deletionRequestedById: previous.deletionRequestedById ?? user.id,
+            }
+          : {
+              deletionRequestedAt: new Date(),
+              deletionRequestedById: user.id,
+            },
       });
       await tx.incidentHistory.create({
         data: {
           incidentId: id,
           changedById: user.id,
-          fieldChanged: "archivedAt",
+          fieldChanged: confirmArchive ? "archivedAt" : "deletionRequestedAt",
           oldValue: "",
-          newValue: next.archivedAt?.toISOString() ?? "archived",
+          newValue: confirmArchive
+            ? next.archivedAt?.toISOString() ?? "archived"
+            : next.deletionRequestedAt?.toISOString() ?? "flagged",
         },
       });
       await logAudit(tx, {
         userId: user.id,
-        action: "incident.archived",
+        action: confirmArchive ? "incident.archived" : "incident.deletion_flagged",
         entityType: "Incident",
         entityId: id,
-        previousValue: { status: previous.status, archivedAt: null },
-        newValue: { status: next.status, archivedAt: next.archivedAt },
+        previousValue: {
+          status: previous.status,
+          archivedAt: previous.archivedAt,
+          deletionRequestedAt: previous.deletionRequestedAt,
+        },
+        newValue: {
+          status: next.status,
+          archivedAt: next.archivedAt,
+          deletionRequestedAt: next.deletionRequestedAt,
+        },
         ...meta,
       });
-      await refreshFacilityHealth(previous.facilityId, tx);
+      if (confirmArchive) {
+        await refreshFacilityHealth(previous.facilityId, tx);
+      }
       return next;
     });
     return json({ ok: true, incident });

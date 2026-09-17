@@ -3,6 +3,7 @@
 
 import { AuthError } from "next-auth";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/validation";
@@ -22,11 +23,24 @@ export async function loginAction(formData: FormData) {
     return { error: "Too many sign-in attempts. Try again in a minute." };
   }
   try {
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email,
       password,
-      redirectTo: callbackUrl.startsWith("/") ? callbackUrl : "/dashboard",
+      redirect: false,
     });
+    if (result?.error) {
+      return { error: "Invalid credentials. If this continues, the account may be locked." };
+    }
+    const account = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      select: { mustResetPassword: true },
+    });
+    const dest = account?.mustResetPassword
+      ? "/change-password"
+      : callbackUrl.startsWith("/")
+        ? callbackUrl
+        : "/dashboard";
+    redirect(dest);
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "Invalid credentials. If this continues, the account may be locked." };

@@ -7,7 +7,7 @@ import { PageHeader, CollapsibleSection } from "@/components/ui/page";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SimpleForm } from "@/components/forms";
 import { formatDateTime, formatRole } from "@/lib/utils";
-import { CREDENTIAL_HINT } from "@/lib/password";
+import { CREDENTIAL_HINT } from "@/lib/password-policy";
 import { ListFilters } from "@/components/list-filters";
 import { UserAdminActions } from "@/components/user-admin-actions";
 

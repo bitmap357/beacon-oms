@@ -34,9 +34,15 @@ export async function GET(
       authorName: report.author.name,
       content: parseJson<Record<string, unknown>>(report.content, {}),
     };
-    const logo = {
-      logoS3Key: report.facility.logoS3Key,
-      logoFileType: report.facility.logoFileType,
+    const logos = {
+      facility: {
+        logoS3Key: report.facility.logoS3Key,
+        logoFileType: report.facility.logoFileType,
+      },
+      organization: {
+        logoS3Key: report.facility.clientOrganization.logoS3Key,
+        logoFileType: report.facility.clientOrganization.logoFileType,
+      },
     };
 
     if (format === "docx") {
@@ -59,7 +65,7 @@ export async function GET(
         },
       });
     }
-    const pdf = await exportPdf(payload, logo);
+    const pdf = await exportPdf(payload, logos);
     return new Response(Buffer.from(pdf), {
       headers: {
         "Content-Type": "application/pdf",

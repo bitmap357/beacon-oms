@@ -30,7 +30,15 @@ import {
 import { ALLOWED_LOGO_MIME, dataUrlFrom, getObjectBuffer } from "@/lib/storage";
 import { formatDate } from "@/lib/utils";
 
-async function withLogos(report: ReportRecord, facility?: { logoS3Key: string | null; logoFileType: string | null }) {
+type LogoSource = { logoS3Key: string | null; logoFileType: string | null };
+
+async function withLogos(
+  report: ReportRecord,
+  logos?: {
+    facility?: LogoSource;
+    organization?: LogoSource;
+  },
+) {
   if (!report.beaconLogoDataUrl) {
     try {
       const lockup = await readFile(path.join(process.cwd(), "public/brand/lockup.png"));
@@ -39,12 +47,30 @@ async function withLogos(report: ReportRecord, facility?: { logoS3Key: string | 
       // PDF still renders the text fallback in the masthead.
     }
   }
-  if (!report.facilityLogoDataUrl && facility?.logoS3Key && facility.logoFileType && ALLOWED_LOGO_MIME.has(facility.logoFileType)) {
+  if (
+    !report.organizationLogoDataUrl &&
+    logos?.organization?.logoS3Key &&
+    logos.organization.logoFileType &&
+    ALLOWED_LOGO_MIME.has(logos.organization.logoFileType)
+  ) {
     try {
-      const buffer = await getObjectBuffer(facility.logoS3Key);
-      report.facilityLogoDataUrl = dataUrlFrom(buffer, facility.logoFileType);
+      const buffer = await getObjectBuffer(logos.organization.logoS3Key);
+      report.organizationLogoDataUrl = dataUrlFrom(buffer, logos.organization.logoFileType);
     } catch {
-      // Fall back to Beacon-only masthead.
+      // Omit org logo slot.
+    }
+  }
+  if (
+    !report.facilityLogoDataUrl &&
+    logos?.facility?.logoS3Key &&
+    logos.facility.logoFileType &&
+    ALLOWED_LOGO_MIME.has(logos.facility.logoFileType)
+  ) {
+    try {
+      const buffer = await getObjectBuffer(logos.facility.logoS3Key);
+      report.facilityLogoDataUrl = dataUrlFrom(buffer, logos.facility.logoFileType);
+    } catch {
+      // Fall back without facility logo.
     }
   }
   return report;
@@ -83,9 +109,12 @@ function chromeExecutable() {
 
 export async function exportPdf(
   report: ReportRecord,
-  facility?: { logoS3Key: string | null; logoFileType: string | null },
+  logos?: {
+    facility?: LogoSource;
+    organization?: LogoSource;
+  },
 ) {
-  const payload = await withLogos(report, facility);
+  const payload = await withLogos(report, logos);
   const puppeteer = await import("puppeteer");
   const executablePath = chromeExecutable();
   if (!executablePath) {

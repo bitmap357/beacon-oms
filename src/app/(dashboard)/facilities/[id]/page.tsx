@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertFacilityAccess, hasPermission } from "@/lib/permissions";
 import { calculateVisitRecommendation } from "@/lib/rules/visitRecommendation";
-import { FACILITY_HEALTH_CRITERIA } from "@/lib/rules/facilityHealth";
+import { describeFacilityHealthCriteria } from "@/lib/rules/facilityHealth";
+import { getFacilityHealthThresholds } from "@/lib/settings";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page";
@@ -32,6 +33,7 @@ export default async function FacilityDetailPage({
   const user = await requireUser();
   const { id } = await params;
   await assertFacilityAccess(user, id);
+  const healthCriteria = describeFacilityHealthCriteria(await getFacilityHealthThresholds());
   const facility = await prisma.facility.findUnique({
     where: { id },
     include: {
@@ -127,7 +129,7 @@ export default async function FacilityDetailPage({
           {facility.statusOverride ? " (manual override)" : " (calculated)"}
         </p>
         <ul className="mt-2 space-y-1 text-[13px] leading-relaxed text-ink">
-          {FACILITY_HEALTH_CRITERIA.map((row) => (
+          {healthCriteria.map((row) => (
             <li key={row.status}>
               <span className="font-medium text-brand">{labelize(row.status)}:</span> {row.rule}
             </li>
@@ -318,7 +320,9 @@ export default async function FacilityDetailPage({
       </div>
 
       <Card className="mt-4 p-5">
-        <h2 className="font-heading mb-3 text-[18px]">Branches</h2>
+        <h2 id="branches" className="font-heading mb-3 scroll-mt-24 text-[18px]">
+          Branches
+        </h2>
         {facility.branches.length === 0 ? (
           <p className="mb-3 text-sm text-slate">
             This facility has no branches. Incidents apply to the site as a whole unless you add one.
@@ -655,14 +659,15 @@ export default async function FacilityDetailPage({
           {hasPermission(user.role, "handovers.manage") ? (
             <div className="mb-4">
               <p className="mb-3 text-sm text-slate">
-                Hands Lead PM/QA from{" "}
+                Request a Lead PM/QA transfer from{" "}
                 <span className="text-ink">{leadPm?.user.name || "No Lead PM/QA assigned"}</span> to
-                another PM/QA. The previous lead stays on the team as a member.
+                another PM/QA. An admin must approve before the lead changes; the previous lead stays
+                on the team as a member.
               </p>
               {leadPm ? (
                 <SimpleForm
                   action={`/api/facilities/${id}/handovers`}
-                  submitLabel="Start handover"
+                  submitLabel="Request handover"
                   fields={[
                     {
                       name: "toUserId",
@@ -684,7 +689,8 @@ export default async function FacilityDetailPage({
             {handovers.map((row) => (
               <li key={row.id} className="space-y-1">
                 <p>
-                  {formatDate(row.createdAt)} · {row.fromUser?.name || "—"} → {row.toUser?.name || "—"}
+                  {formatDate(row.createdAt)} · {row.status} · {row.fromUser?.name || "—"} →{" "}
+                  {row.toUser?.name || "—"}
                 </p>
                 <HandoverSnapshot value={row.summarySnapshot} />
               </li>

@@ -3,8 +3,9 @@
  * Pair: schema here ↔ route.ts parse() ↔ form fields in src/components/forms.tsx (or incident-forms).
  */
 import { z } from "zod";
-import { CREDENTIAL_HINT, CREDENTIAL_COMPLEXITY } from "@/lib/password";
+import { CREDENTIAL_HINT, CREDENTIAL_COMPLEXITY } from "@/lib/password-policy";
 import { INCIDENT_STATUS_ALIASES } from "@/lib/incident-status";
+import { endAfterStart, endAfterStartMessage } from "@/lib/time-range";
 
 const incidentStatusSchema = z.preprocess((value) => {
   if (typeof value !== "string") return value;
@@ -129,30 +130,35 @@ export const assignmentPatchSchema = z.object({
 });
 
 // Calendar visits POST this with type: "SITE_VISIT".
-export const activitySchema = z.object({
-  facilityId: z.string().min(1),
-  type: z.enum([
-    "SITE_VISIT",
-    "TRAINING",
-    "DEMONSTRATION",
-    "DEPLOYMENT",
-    "QA",
-    "MEETING",
-    "FOLLOW_UP",
-    "SUPPORT",
-    "INSTALLATION",
-    "SYSTEM_REVIEW",
-    "OTHER",
-  ]),
-  date: z.string().min(1),
-  startTime: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-  responsibleUserId: z.string().min(1),
-  participantIds: z.array(z.string()).optional(),
-  description: z.string().trim().optional().nullable(),
-  findings: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-});
+export const activitySchema = z
+  .object({
+    facilityId: z.string().min(1),
+    type: z.enum([
+      "SITE_VISIT",
+      "TRAINING",
+      "DEMONSTRATION",
+      "DEPLOYMENT",
+      "QA",
+      "MEETING",
+      "FOLLOW_UP",
+      "SUPPORT",
+      "INSTALLATION",
+      "SYSTEM_REVIEW",
+      "OTHER",
+    ]),
+    date: z.string().min(1),
+    startTime: z.string().optional().nullable(),
+    endTime: z.string().optional().nullable(),
+    responsibleUserId: z.string().min(1),
+    participantIds: z.array(z.string()).optional(),
+    description: z.string().trim().optional().nullable(),
+    findings: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  })
+  .refine((row) => endAfterStart(row.startTime, row.endTime), {
+    message: endAfterStartMessage(),
+    path: ["endTime"],
+  });
 
 export const incidentSchema = z.object({
   facilityId: z.string().min(1),
@@ -233,3 +239,28 @@ export const handoverSchema = z.object({
   toUserId: z.string().min(1, "Choose who receives the handover"),
   notes: z.string().optional().nullable(),
 });
+
+export const handoverReviewSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  note: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const facilityHealthSettingsSchema = z.object({
+  critical: z.object({
+    criticalOpenMin: z.number().int().min(0).max(100),
+    unresolvedHighOver7DaysMin: z.number().int().min(0).max(100),
+  }),
+  atRisk: z.object({
+    openIncidentsMin: z.number().int().min(0).max(100),
+    highPriorityOpenMin: z.number().int().min(0).max(100),
+    overdueActionsMin: z.number().int().min(0).max(100),
+    unresolvedHighOver7DaysMin: z.number().int().min(0).max(100),
+  }),
+  attention: z.object({
+    openIncidentsMin: z.number().int().min(0).max(100),
+    overdueActionsMin: z.number().int().min(0).max(100),
+    oldPendingQAMin: z.number().int().min(0).max(100),
+  }),
+});
+
+export type FacilityHealthSettingsInput = z.infer<typeof facilityHealthSettingsSchema>;

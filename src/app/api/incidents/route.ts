@@ -7,6 +7,7 @@ import { incidentSchema } from "@/lib/validation";
 import { notifyUsers } from "@/lib/notifications";
 import { refreshFacilityHealth } from "@/lib/rules/facilityHealth";
 import { incidentStatusesForFilter, reportedAtFilter } from "@/lib/incident-status";
+import { allocateIncidentNumber } from "@/lib/incident-number";
 import { incidentLabel, incidentRecordFields } from "@/lib/utils";
 
 export async function GET(request: Request) {
@@ -70,9 +71,12 @@ export async function POST(request: Request) {
     }
     const meta = requestMeta(request);
     const incident = await prisma.$transaction(async (tx) => {
+      const reportedAt = new Date(body.reportedAt);
+      const incidentNumber = await allocateIncidentNumber(tx, reportedAt);
       const next = await tx.incident.create({
         data: {
           ...incidentRecordFields({ description: body.description }),
+          incidentNumber,
           facilityId: body.facilityId,
           branchId: body.branchId || null,
           reporterId: user.id,
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
           assigneeId: body.assigneeId || null,
           relatedActivityId: body.relatedActivityId || null,
           dueDate: body.dueDate ? new Date(body.dueDate) : null,
-          reportedAt: new Date(body.reportedAt),
+          reportedAt,
           status: body.status,
         },
       });

@@ -1,6 +1,7 @@
-/** Argon2id hashing, password rules, and reset-token helpers. Policy text: CREDENTIAL_HINT. */
+/** Argon2id hashing and reset-token helpers. Policy text: password-policy.ts. */
 import { hash, verify } from "@node-rs/argon2";
 import { createHash, randomBytes } from "node:crypto";
+import { CREDENTIAL_COMPLEXITY, CREDENTIAL_HINT } from "@/lib/password-policy";
 
 const ARGON2_OPTIONS = {
   memoryCost: 19456,
@@ -30,8 +31,4 @@ export function createResetToken() {
   return { token, hash: sha256(token) };
 }
 
-export const CREDENTIAL_COMPLEXITY =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-
-export const CREDENTIAL_HINT =
-  "At least 8 characters, with uppercase, lowercase, a number, and a special character.";
+export { CREDENTIAL_COMPLEXITY, CREDENTIAL_HINT };

@@ -118,18 +118,28 @@ export default async function IncidentDetailPage({
   return (
     <div>
       <PageHeader
-        title={incidentLabel(incident)}
-        description={`${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}${incident.archivedAt ? " · Archived" : ""}`}
+        title={incident.incidentNumber || incidentLabel(incident)}
+        description={`${incidentLabel({ ...incident, incidentNumber: null })} · ${incident.facility.name}${incident.branch ? ` · ${incident.branch.name}` : ""}${incident.archivedAt ? " · Archived" : ""}${incident.deletionRequestedAt && !incident.archivedAt ? " · Flagged for deletion" : ""}`}
         illustration="/brand/illustrations/page-incidents.png"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PriorityPill priority={incident.priority} />
             {canManage && !incident.archivedAt ? (
               <DeleteButton
                 path={`/api/incidents/${incident.id}`}
-                label="Archive"
-                confirmTitle="Archive this incident?"
-                confirmDescription="The incident is hidden from default lists. Comments and history are kept."
+                label="Flag for deletion"
+                confirmTitle="Flag this incident for deletion?"
+                confirmDescription="The incident stays in history with a deletion flag. An admin can confirm archive later."
+                successToast="Flagged for deletion"
+                redirectTo="/incidents"
+              />
+            ) : null}
+            {user.role === "ADMIN" && !incident.archivedAt && incident.deletionRequestedAt ? (
+              <DeleteButton
+                path={`/api/incidents/${incident.id}?confirm=1`}
+                label="Confirm archive"
+                confirmTitle="Archive this flagged incident?"
+                confirmDescription="Hides the incident from default lists. Comments and history are kept."
                 successToast="Archived"
                 redirectTo="/incidents"
               />

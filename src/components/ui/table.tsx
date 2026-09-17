@@ -9,7 +9,7 @@ export function Table({
     <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
       <table
         className={cn(
-          "w-full min-w-[36rem] text-left text-[14px] leading-snug md:min-w-0",
+          "w-full min-w-[36rem] text-center text-[14px] leading-snug md:min-w-0",
           className,
         )}
         {...props}
@@ -47,7 +47,7 @@ export function TH({
   return (
     <th
       className={cn(
-        "px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-slate lg:px-3",
+        "px-3 py-2.5 text-center text-[11px] font-medium uppercase tracking-[0.06em] text-slate lg:px-3",
         className,
       )}
       {...props}
@@ -60,6 +60,6 @@ export function TD({
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn("px-3 py-2.5 align-middle text-ink lg:py-2.5", className)} {...props} />
+    <td className={cn("px-3 py-2.5 text-center align-middle text-ink lg:py-2.5", className)} {...props} />
   );
 }

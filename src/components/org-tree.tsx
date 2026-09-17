@@ -10,6 +10,7 @@ import { apiRequest } from "@/components/forms";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatContact } from "@/lib/utils";
 import { EditDeleteControls } from "@/components/record-actions";
+import { OrganizationLogoForm, OrganizationLogoMark } from "@/components/organization-logo";
 
 export function OrganizationTree({
   canManageOrgs,
@@ -21,6 +22,7 @@ export function OrganizationTree({
   organizations: Array<{
     id: string;
     name: string;
+    logoS3Key?: string | null;
     regions: Array<{ id: string; name: string }>;
     facilities: Array<{
       id: string;
@@ -117,14 +119,22 @@ export function OrganizationTree({
       ) : null}
 
       {organizations.map((org) => (
-        <section key={org.id} className="rounded-[12px] border border-hairline bg-surface-raised p-5">
+        <section key={org.id} className="surface-3d rounded-[12px] border border-hairline bg-surface-raised p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-[20px] text-ink">{org.name}</h2>
-              <p className="text-[13px] text-slate">
-                {org.facilities.length} facilit{org.facilities.length === 1 ? "y" : "ies"} ·
-                name is on the organization; location lives on each facility and branch
-              </p>
+            <div className="flex min-w-0 items-start gap-3">
+              <OrganizationLogoMark
+                organizationId={org.id}
+                hasLogo={Boolean(org.logoS3Key)}
+                name={org.name}
+                size={40}
+              />
+              <div>
+                <h2 className="font-heading text-[20px] text-ink">{org.name}</h2>
+                <p className="text-[13px] text-slate">
+                  {org.facilities.length} facilit{org.facilities.length === 1 ? "y" : "ies"} ·
+                  name is on the organization; location lives on each facility and branch
+                </p>
+              </div>
             </div>
             {canManageOrgs ? (
               <EditDeleteControls
@@ -137,6 +147,16 @@ export function OrganizationTree({
               />
             ) : null}
           </div>
+
+          {canManageOrgs ? (
+            <div className="mb-5 rounded-[10px] border border-hairline bg-surface p-3">
+              <OrganizationLogoForm
+                organizationId={org.id}
+                hasLogo={Boolean(org.logoS3Key)}
+                name={org.name}
+              />
+            </div>
+          ) : null}
 
           {org.regions.length ? (
             <p className="mb-3 text-[13px] text-slate">

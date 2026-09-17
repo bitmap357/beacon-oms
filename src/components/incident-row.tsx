@@ -23,6 +23,7 @@ function asIso(value: string | Date) {
 
 type IncidentRowData = {
   id: string;
+  incidentNumber?: string | null;
   status: string;
   priority: string;
   description: string;
@@ -32,6 +33,7 @@ type IncidentRowData = {
   assigneeId?: string | null;
   assigneeName?: string | null;
   archivedAt?: string | null;
+  deletionRequestedAt?: string | null;
   createdAt: string;
   reportedAt: string;
   updatedAt: string;
@@ -79,6 +81,7 @@ export function IncidentInbox({
         <Table>
           <THead>
             <TR>
+              <TH>Number</TH>
               <TH>Incident</TH>
               <TH>Facility / branch</TH>
               <TH>Priority</TH>
@@ -118,6 +121,7 @@ export function IncidentRow({
   const [updatedAt, setUpdatedAt] = useState(incident.updatedAt);
   const statuses = incidentStatusOptions(canClose, status);
   const isArchived = Boolean(incident.archivedAt);
+  const isFlagged = Boolean(incident.deletionRequestedAt);
 
   useEffect(() => {
     setStatus(String(canonicalIncidentStatus(incident.status)));
@@ -225,10 +229,10 @@ export function IncidentRow({
         <EditDeleteControls
           compact={compact}
           path={`/api/incidents/${incident.id}`}
-          deleteLabel="Archive"
-          deleteConfirmTitle="Archive this incident?"
-          deleteConfirmDescription="The incident is hidden from default lists. Comments and history are kept."
-          deleteSuccessToast="Archived"
+          deleteLabel="Flag for deletion"
+          deleteConfirmTitle="Flag this incident for deletion?"
+          deleteConfirmDescription="The incident stays visible with a deletion flag. An admin can confirm archive later. History is kept."
+          deleteSuccessToast="Flagged for deletion"
           fields={[
             {
               name: "description",
@@ -314,6 +318,9 @@ export function IncidentRow({
             <PriorityPill priority={incident.priority} />
           </span>
         </div>
+        {isFlagged ? (
+          <p className="mt-1 text-[12px] text-[#791F1F]">Flagged for deletion</p>
+        ) : null}
         <p className="mt-1 text-[13px] text-slate">
           <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
             {incident.facilityName}
@@ -339,10 +346,14 @@ export function IncidentRow({
   return (
     <>
       <TR>
+        <TD className="font-mono text-[12px]">{incident.incidentNumber || "—"}</TD>
         <TD>
           <Link className="text-brand" href={`/incidents/${incident.id}`}>
-            {incidentLabel(incident)}
+            {incidentLabel({ ...incident, incidentNumber: null })}
           </Link>
+          {isFlagged ? (
+            <span className="mt-1 block text-[11px] text-[#791F1F]">Flagged for deletion</span>
+          ) : null}
         </TD>
         <TD>
           <Link className="text-brand" href={`/facilities/${incident.facilityId}`}>
@@ -365,12 +376,12 @@ export function IncidentRow({
       </TR>
       {commentForm ? (
         <TR>
-          <TD colSpan={8}>{commentForm}</TD>
+          <TD colSpan={9}>{commentForm}</TD>
         </TR>
       ) : null}
       {addActionForm ? (
         <TR>
-          <TD colSpan={8}>{addActionForm}</TD>
+          <TD colSpan={9}>{addActionForm}</TD>
         </TR>
       ) : null}
     </>

@@ -149,6 +149,7 @@ export default async function IncidentsPage({
           users={users}
           incidents={incidents.map((row) => ({
             id: row.id,
+            incidentNumber: row.incidentNumber,
             status: row.status,
             priority: row.priority,
             description: row.description,
@@ -158,6 +159,7 @@ export default async function IncidentsPage({
             assigneeId: row.assigneeId,
             assigneeName: row.assignee?.name,
             archivedAt: row.archivedAt?.toISOString() ?? null,
+            deletionRequestedAt: row.deletionRequestedAt?.toISOString() ?? null,
             createdAt: row.createdAt.toISOString(),
             reportedAt: row.reportedAt.toISOString(),
             updatedAt: row.updatedAt.toISOString(),

@@ -346,6 +346,10 @@ export function CalendarBoard({
     const date = String(formData.get("date"));
     const start = String(formData.get("startTime") || "09:00");
     const end = String(formData.get("endTime") || "12:00");
+    if (end <= start) {
+      toast.error("End time must be after start time");
+      return;
+    }
     const type = String(formData.get("type") || "SITE_VISIT");
     const responsible = String(formData.get("responsibleUserId") || "");
     const participantIds = formData

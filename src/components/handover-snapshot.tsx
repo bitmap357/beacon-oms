@@ -1,7 +1,6 @@
 import { parseJson } from "@/lib/db-types";
 
 type Snapshot = {
-  lead?: string | null;
   openIncidents?: unknown[];
   openActions?: unknown[];
   overdueActions?: unknown[];
@@ -20,7 +19,6 @@ export function HandoverSnapshot({ value }: { value: string }) {
       {actions === 1 ? "" : "s"}
       {overdue ? ` · ${overdue} overdue` : ""}
       {qa ? ` · ${qa} pending QA` : ""}
-      {snapshot.lead ? ` · lead ${snapshot.lead}` : ""}
     </p>
   );
 }

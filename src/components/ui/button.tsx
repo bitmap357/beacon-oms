@@ -1,4 +1,4 @@
-/** Button variants (default, secondary, ghost). Beacon navy hierarchy + restrained press motion. */
+/** Button variants (default, secondary, ghost). Beacon navy hierarchy + restrained 3D press. */
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
@@ -6,21 +6,21 @@ import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   [
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-[14px] font-medium",
+    "btn-3d inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-[14px] font-medium",
     "transition-[background-color,border-color,color,box-shadow,transform] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)]",
-    "active:scale-[0.98] touch-manipulation disabled:pointer-events-none disabled:opacity-50",
+    "active:translate-y-px active:scale-[0.98] touch-manipulation disabled:pointer-events-none disabled:opacity-50",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised",
   ].join(" "),
   {
     variants: {
       variant: {
         default:
-          "bg-brand text-white shadow-[0_1px_0_rgba(11,59,168,0.35)] hover:bg-brand-deep hover:shadow-[0_2px_8px_rgba(21,88,214,0.28)]",
+          "bg-brand text-white shadow-[var(--shadow-button)] hover:-translate-y-px hover:bg-brand-deep hover:shadow-[var(--shadow-button-hover)] active:shadow-[var(--shadow-button-active)]",
         secondary:
-          "border border-hairline bg-surface-raised text-ink shadow-[0_1px_0_rgba(28,36,48,0.03)] hover:border-brand/35 hover:bg-surface",
+          "border border-hairline bg-surface-raised text-ink shadow-[var(--shadow-secondary)] hover:-translate-y-px hover:border-brand/35 hover:bg-surface hover:shadow-[var(--shadow-secondary-hover)] active:shadow-[var(--shadow-secondary-active)]",
         ghost: "text-ink hover:bg-muted/70 hover:text-ink",
         danger:
-          "bg-[#791F1F] text-white shadow-[0_1px_0_rgba(92,23,23,0.35)] hover:bg-[#5c1717]",
+          "bg-[#791F1F] text-white shadow-[0_1px_0_rgba(92,23,23,0.35),0_2px_6px_rgba(92,23,23,0.16),inset_0_1px_0_rgba(255,255,255,0.14)] hover:-translate-y-px hover:bg-[#5c1717] hover:shadow-[0_2px_0_rgba(92,23,23,0.3),0_6px_14px_rgba(92,23,23,0.22),inset_0_1px_0_rgba(255,255,255,0.16)] active:shadow-[inset_0_2px_5px_rgba(60,12,12,0.4)]",
       },
       size: {
         default: "h-10 px-4",

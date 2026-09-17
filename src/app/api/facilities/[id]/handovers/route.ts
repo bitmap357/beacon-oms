@@ -1,4 +1,7 @@
-/** POST handover; transfers Lead PM/QA and saves summarySnapshot of open work. */
+/**
+ * Handover create = PENDING request (no lead transfer yet).
+ * Admin approve/reject via /api/handovers/[id]/review.
+ */
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { HttpError, errorResponse, json, requireApiPermission, requireApiUser } from "@/lib/http";
@@ -9,14 +12,7 @@ import { OPEN_INCIDENT_STATUS_QUERY, OPEN_ACTION_STATUSES } from "@/lib/incident
 import { toJsonString } from "@/lib/db-types";
 
 async function buildSnapshot(facilityId: string) {
-  const [
-    facility,
-    assignments,
-    incidents,
-    actions,
-    activities,
-    qa,
-  ] = await Promise.all([
+  const [facility, assignments, incidents, actions, activities, qa] = await Promise.all([
     prisma.facility.findUnique({
       where: { id: facilityId },
       include: { clientOrganization: true, region: true },
@@ -28,9 +24,16 @@ async function buildSnapshot(facilityId: string) {
     prisma.incident.findMany({
       where: {
         facilityId,
+        archivedAt: null,
         status: { in: [...OPEN_INCIDENT_STATUS_QUERY] },
       },
-      select: { id: true, description: true, priority: true, status: true },
+      select: {
+        id: true,
+        incidentNumber: true,
+        description: true,
+        priority: true,
+        status: true,
+      },
     }),
     prisma.action.findMany({
       where: {
@@ -51,7 +54,6 @@ async function buildSnapshot(facilityId: string) {
     }),
   ]);
 
-  const lead = assignments.find((row) => row.isLead && row.assignmentType === "PM_QA");
   return {
     facility: facility
       ? {
@@ -61,12 +63,11 @@ async function buildSnapshot(facilityId: string) {
           status: facility.status,
         }
       : null,
+    // Team roster without calling out the lead (product: remove lead from snapshot).
     team: assignments.map((row) => ({
       name: row.user.name,
       type: row.assignmentType,
-      isLead: row.isLead,
     })),
-    lead: lead?.user.name ?? null,
     openIncidents: incidents,
     criticalIncidents: incidents.filter((row) => row.priority === "CRITICAL"),
     openActions: actions,
@@ -90,6 +91,7 @@ export async function GET(
         fromUser: { select: { name: true } },
         toUser: { select: { name: true } },
         initiatedBy: { select: { name: true } },
+        reviewedBy: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -125,105 +127,57 @@ export async function POST(
       throw new HttpError(400, "Recipient is already the Lead PM/QA");
     }
 
+    const pending = await prisma.handover.findFirst({
+      where: { facilityId: id, status: "PENDING" },
+    });
+    if (pending) {
+      throw new HttpError(400, "A pending handover already exists for this facility");
+    }
+
     const fromUserId = leadRow.userId;
     const snapshot = await buildSnapshot(id);
     const meta = requestMeta(request);
     const handover = await prisma.$transaction(async (tx) => {
-      // Demote current lead; they remain on the team as a member.
-      await tx.facilityAssignment.update({
-        where: { id: leadRow.id },
-        data: { isLead: false },
-      });
-
-      // Upsert recipient as the sole active Lead PM/QA row for this facility.
-      const activeForTo = await tx.facilityAssignment.findMany({
-        where: { facilityId: id, userId: body.toUserId!, isActive: true },
-        orderBy: { updatedAt: "desc" },
-      });
-      const primary = activeForTo[0];
-      if (activeForTo.length > 1) {
-        await tx.facilityAssignment.updateMany({
-          where: { id: { in: activeForTo.slice(1).map((row) => row.id) } },
-          data: { isActive: false, endDate: new Date(), isLead: false },
-        });
-      }
-      if (primary) {
-        await tx.facilityAssignment.update({
-          where: { id: primary.id },
-          data: { assignmentType: "PM_QA", isLead: true },
-        });
-      } else {
-        const inactive = await tx.facilityAssignment.findFirst({
-          where: { facilityId: id, userId: body.toUserId!, isActive: false },
-          orderBy: { updatedAt: "desc" },
-        });
-        if (inactive) {
-          await tx.facilityAssignment.update({
-            where: { id: inactive.id },
-            data: {
-              assignmentType: "PM_QA",
-              isLead: true,
-              isActive: true,
-              startDate: new Date(),
-              endDate: null,
-            },
-          });
-        } else {
-          await tx.facilityAssignment.create({
-            data: {
-              facilityId: id,
-              userId: body.toUserId!,
-              assignmentType: "PM_QA",
-              isLead: true,
-            },
-          });
-        }
-      }
-
-      // Ensure no other PM/QA lead remains.
-      await tx.facilityAssignment.updateMany({
-        where: {
-          facilityId: id,
-          assignmentType: "PM_QA",
-          isLead: true,
-          isActive: true,
-          userId: { not: body.toUserId! },
-        },
-        data: { isLead: false },
-      });
-
       const next = await tx.handover.create({
         data: {
           facilityId: id,
           fromUserId,
           toUserId: body.toUserId!,
           initiatedById: user.id,
+          status: "PENDING",
           summarySnapshot: toJsonString(snapshot),
           notes: body.notes,
         },
       });
       await logAudit(tx, {
         userId: user.id,
-        action: "handover.created",
+        action: "handover.requested",
         entityType: "Handover",
         entityId: next.id,
         newValue: {
           facilityId: id,
           fromUserId,
           toUserId: body.toUserId,
-          leadTransferred: true,
+          status: "PENDING",
         },
         ...meta,
       });
       return next;
     });
-    const recipients = [body.toUserId, fromUserId].filter(Boolean) as string[];
-    await notifyUsers(recipients, {
-      type: "HANDOVER_INITIATED",
-      message: `Lead PM/QA handover completed for this facility`,
-      relatedType: "Handover",
-      relatedId: handover.id,
+
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", isActive: true },
+      select: { id: true },
     });
+    await notifyUsers(
+      [...admins.map((row) => row.id), body.toUserId, fromUserId].filter(Boolean) as string[],
+      {
+        type: "HANDOVER_PENDING",
+        message: `Lead PM/QA handover requested — awaiting admin approval`,
+        relatedType: "Handover",
+        relatedId: handover.id,
+      },
+    );
     return json({ handover }, 201);
   } catch (error) {
     return errorResponse(error);

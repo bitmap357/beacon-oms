@@ -20,15 +20,22 @@ export function formatDate(value: Date | string | null | undefined) {
 }
 
 export function incidentLabel(row: {
+  incidentNumber?: string | null;
   description?: string | null;
   title?: string | null;
   reportedAt?: Date | string | null;
   createdAt?: Date | string | null;
 }) {
+  const number = row.incidentNumber?.trim();
   const text = row.description?.trim() || "";
-  if (text) return text.length > 90 ? `${text.slice(0, 87)}…` : text;
-  const date = formatDate(row.reportedAt || row.createdAt);
-  return date === "—" ? "Incident" : `Incident · ${date}`;
+  const body = text
+    ? text.length > 90
+      ? `${text.slice(0, 87)}…`
+      : text
+    : formatDate(row.reportedAt || row.createdAt) === "—"
+      ? "Incident"
+      : `Incident · ${formatDate(row.reportedAt || row.createdAt)}`;
+  return number ? `${number} · ${body}` : body;
 }
 
 export function incidentRecordFields(input?: { description?: string | null }) {

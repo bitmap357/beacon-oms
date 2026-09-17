@@ -134,9 +134,13 @@ export default async function FacilitiesPage({
                   </TD>
                   <TD>{row.region?.name || "—"}</TD>
                   <TD>
-                    {row.branches.length
-                      ? row.branches.map((branch) => branch.name).join(", ")
-                      : "—"}
+                    {row.branches.length ? (
+                      <Link className="text-brand" href={`/facilities/${row.id}#branches`}>
+                        {row.branches.length}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
                   </TD>
                   <TD>
                     {row.assignments.find((assignment) => assignment.assignmentType === "PM_QA")?.user.name || "—"}

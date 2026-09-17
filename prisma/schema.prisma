@@ -47,6 +47,7 @@ model User {
   handoversFrom         Handover[]             @relation("HandoverFrom")
   handoversTo           Handover[]             @relation("HandoverTo")
   handoversInitiated    Handover[]             @relation("HandoverInitiator")
+  handoversReviewed     Handover[]             @relation("HandoverReviewer")
   notifications         Notification[]
   auditLogs             AuditLog[]
   attachmentsUploaded   Attachment[]           @relation("AttachmentUploader")
@@ -54,13 +55,23 @@ model User {
   incidentComments      IncidentComment[]
 }
 
+// Key-value app config (e.g. facilityHealth thresholds JSON).
+model AppSetting {
+  key         String   @id
+  value       String   @db.NVarChar(Max)
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 // Client org → regions → facilities → optional branches. Incidents hang off facility + branch.
 model ClientOrganization {
-  id         String     @id @default(cuid())
-  name       String
-  source     String     @default("NATIVE")
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  name         String
+  source       String     @default("NATIVE")
+  logoS3Key    String?
+  logoFileType String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   regions    Region[]
   facilities Facility[]
@@ -196,31 +207,36 @@ model ActivityParticipant {
 }
 
 // Ticket. status transitions live in src/app/api/incidents/[id]/route.ts (TRANSITIONS map).
+// Human-visible IDs use INC-YYYY-NNNNN (global yearly sequence via IncidentNumberCounter).
 model Incident {
-  id                String          @id @default(cuid())
-  title             String
-  facilityId        String
-  facility          Facility        @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  branchId          String?
-  branch            FacilityBranch? @relation(fields: [branchId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  description       String          @db.NVarChar(Max)
-  reporterId        String
-  reporter          User            @relation("IncidentReporter", fields: [reporterId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  priority          String
-  status            String          @default("NEW")
-  assigneeId        String?
-  assignee          User?           @relation("IncidentAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  relatedActivityId String?
-  relatedActivity   Activity?       @relation(fields: [relatedActivityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  dueDate           DateTime?
-  resolutionInfo    String?         @db.NVarChar(Max)
-  resolvedAt        DateTime?
-  closedAt          DateTime?
-  reportedAt        DateTime        @default(now())
-  source            String          @default("NATIVE")
-  archivedAt        DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id                    String          @id @default(cuid())
+  incidentNumber        String?         @unique
+  title                 String
+  facilityId            String
+  facility              Facility        @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  branchId              String?
+  branch                FacilityBranch? @relation(fields: [branchId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  description           String          @db.NVarChar(Max)
+  reporterId            String
+  reporter              User            @relation("IncidentReporter", fields: [reporterId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  priority              String
+  status                String          @default("NEW")
+  assigneeId            String?
+  assignee              User?           @relation("IncidentAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  relatedActivityId     String?
+  relatedActivity       Activity?       @relation(fields: [relatedActivityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  dueDate               DateTime?
+  resolutionInfo        String?         @db.NVarChar(Max)
+  resolvedAt            DateTime?
+  closedAt              DateTime?
+  reportedAt            DateTime        @default(now())
+  source                String          @default("NATIVE")
+  // Soft archive keeps history. Flag-for-deletion is a request; admins confirm archive.
+  archivedAt            DateTime?
+  deletionRequestedAt   DateTime?
+  deletionRequestedById String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   history     IncidentHistory[]
   comments    IncidentComment[]
@@ -234,6 +250,13 @@ model Incident {
   @@index([priority, status])
   @@index([title])
   @@index([archivedAt])
+  @@index([deletionRequestedAt])
+}
+
+// Yearly counter for INC-YYYY-NNNNN allocation (SQL Server-safe sequential IDs).
+model IncidentNumberCounter {
+  year      Int @id
+  lastValue Int @default(0)
 }
 
 // Field-level change log for an incident (status, assignee, etc.).
@@ -368,21 +391,28 @@ model QARecord {
 }
 
 // Facility ownership transfer. summarySnapshot is JSON text of open work at that moment.
+// Lead transfer happens only after admin APPROVED (status: PENDING | APPROVED | REJECTED).
 model Handover {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   facilityId      String
-  facility        Facility @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  facility        Facility  @relation(fields: [facilityId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   fromUserId      String?
-  fromUser        User?    @relation("HandoverFrom", fields: [fromUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  fromUser        User?     @relation("HandoverFrom", fields: [fromUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   toUserId        String?
-  toUser          User?    @relation("HandoverTo", fields: [toUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  toUser          User?     @relation("HandoverTo", fields: [toUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   initiatedById   String
-  initiatedBy     User     @relation("HandoverInitiator", fields: [initiatedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  summarySnapshot String   @db.NVarChar(Max)
-  notes           String?  @db.NVarChar(Max)
-  createdAt       DateTime @default(now())
+  initiatedBy     User      @relation("HandoverInitiator", fields: [initiatedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  status          String    @default("PENDING")
+  reviewedById    String?
+  reviewedBy      User?     @relation("HandoverReviewer", fields: [reviewedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  reviewedAt      DateTime?
+  reviewNote      String?   @db.NVarChar(Max)
+  summarySnapshot String    @db.NVarChar(Max)
+  notes           String?   @db.NVarChar(Max)
+  createdAt       DateTime  @default(now())
 
   @@index([facilityId])
+  @@index([status])
 }
 
 // In-app + email alerts. Created via src/lib/notifications.ts.

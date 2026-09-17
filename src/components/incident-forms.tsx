@@ -156,11 +156,26 @@ export function IncidentImportForm({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [selectedFacilityId, setSelectedFacilityId] = useState(facilityId || "");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<{
+    facilityName: string;
+    branchRequired: boolean;
+    rows: Array<{
+      row: number;
+      incident: string;
+      status: string;
+      dateReported: string;
+      branch: string | null;
+      priority: string;
+      error?: string;
+      duplicate?: boolean;
+    }>;
+    summary: { total: number; valid: number; failed: number; duplicates: number };
+  } | null>(null);
   const scopedId = facilityId || selectedFacilityId;
 
-  async function onSubmit(formData: FormData) {
-    const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) {
+  async function runImport(mode: "preview" | "commit") {
+    if (!file || file.size === 0) {
       toast.error("Choose an Excel file first");
       return;
     }
@@ -168,7 +183,10 @@ export function IncidentImportForm({
       toast.error("Choose a facility before uploading");
       return;
     }
+    const formData = new FormData();
+    formData.set("file", file);
     formData.set("facilityId", scopedId);
+    formData.set("mode", mode);
     setPending(true);
     try {
       const res = await fetch("/api/incidents/import", {
@@ -179,10 +197,16 @@ export function IncidentImportForm({
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) throw new Error("Session expired. Sign in again.");
       if (!res.ok) throw new Error(data.error || "Import failed");
-      const failed = Array.isArray(data.failed) ? data.failed.length : 0;
-      toast.success(
-        `Imported ${data.created} incident${data.created === 1 ? "" : "s"}${failed ? `, ${failed} row(s) skipped` : ""}`,
-      );
+      if (mode === "preview") {
+        setPreview(data);
+        toast.success(
+          `Preview ready: ${data.summary?.valid ?? 0} valid, ${data.summary?.failed ?? 0} issues`,
+        );
+        return;
+      }
+      toast.success(`Imported ${data.created} incident${data.created === 1 ? "" : "s"}`);
+      setPreview(null);
+      setFile(null);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Import failed");
@@ -192,10 +216,11 @@ export function IncidentImportForm({
   }
 
   return (
-    <form action={onSubmit} className="space-y-3">
+    <div className="space-y-3">
       <p className="text-[13px] text-slate">
-        Choose the facility here so names in Excel cannot be mistyped. Columns: Incident, Status,
-        DateReported. Optional: Branch, Priority, AssigneeEmail, DueDate.
+        Choose the facility here so names in Excel cannot be mistyped. Preview runs first — fix
+        duplicates before commit. Columns: Incident, Status, DateReported. Optional: Branch,
+        Priority, AssigneeEmail, DueDate. Branch is required when the facility has branches.
       </p>
       {!facilityId && facilities ? (
         <div>
@@ -203,7 +228,10 @@ export function IncidentImportForm({
           <Select
             required
             value={selectedFacilityId}
-            onChange={(event) => setSelectedFacilityId(event.target.value)}
+            onChange={(event) => {
+              setSelectedFacilityId(event.target.value);
+              setPreview(null);
+            }}
           >
             <option value="">Select facility</option>
             {facilities.map((row) => (
@@ -222,19 +250,74 @@ export function IncidentImportForm({
           type="file"
           accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           required
+          onChange={(event) => {
+            setFile(event.target.files?.[0] || null);
+            setPreview(null);
+          }}
         />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={pending}>
+        <Button type="button" disabled={pending} onClick={() => void runImport("preview")}>
           <Upload className="h-4 w-4" />
-          {pending ? "Importing..." : "Upload incidents"}
+          {pending ? "Working…" : "Preview upload"}
         </Button>
         <Button asChild variant="secondary">
-          <a href={scopedId ? `/api/incidents/import/template?facilityId=${scopedId}` : "/api/incidents/import/template"}>
+          <a
+            href={
+              scopedId
+                ? `/api/incidents/import/template?facilityId=${scopedId}`
+                : "/api/incidents/import/template"
+            }
+          >
             Download template
           </a>
         </Button>
       </div>
-    </form>
+      {preview ? (
+        <div className="space-y-3 rounded-xl border border-hairline bg-surface p-3">
+          <p className="text-[13px] text-ink">
+            {preview.facilityName}: {preview.summary.valid} ready · {preview.summary.failed} blocked
+            {preview.summary.duplicates ? ` · ${preview.summary.duplicates} duplicate(s)` : ""}
+            {preview.branchRequired ? " · branch required" : ""}
+          </p>
+          <div className="max-h-64 overflow-auto">
+            <table className="w-full text-center text-[12px]">
+              <thead>
+                <tr className="border-b border-hairline text-slate">
+                  <th className="px-1 py-1.5">Row</th>
+                  <th className="px-1 py-1.5">Incident</th>
+                  <th className="px-1 py-1.5">Status</th>
+                  <th className="px-1 py-1.5">Branch</th>
+                  <th className="px-1 py-1.5">Issue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.map((row) => (
+                  <tr
+                    key={row.row}
+                    className={
+                      row.error ? "bg-[#791F1F]/5 text-[#791F1F]" : "text-ink"
+                    }
+                  >
+                    <td className="px-1 py-1.5 font-mono">{row.row}</td>
+                    <td className="max-w-[12rem] truncate px-1 py-1.5">{row.incident}</td>
+                    <td className="px-1 py-1.5">{row.status}</td>
+                    <td className="px-1 py-1.5">{row.branch || "—"}</td>
+                    <td className="px-1 py-1.5">{row.error || (row.duplicate ? "Duplicate" : "OK")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Button
+            type="button"
+            disabled={pending || preview.summary.failed > 0 || preview.summary.valid === 0}
+            onClick={() => void runImport("commit")}
+          >
+            {pending ? "Importing…" : `Commit ${preview.summary.valid} row(s)`}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }

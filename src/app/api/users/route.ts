@@ -2,8 +2,10 @@
 import { prisma } from "@/lib/db";
 import { logAudit, requestMeta } from "@/lib/audit";
 import { hashPassword } from "@/lib/password";
+import { sendEmail } from "@/lib/email";
 import { requireApiPermission, requireApiUser, errorResponse, json } from "@/lib/http";
 import { userCreateSchema } from "@/lib/validation";
+import { formatRole } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -53,6 +55,17 @@ export async function POST(request: Request) {
       });
       return next;
     });
+
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    await sendEmail(
+      created.email,
+      "Your Beacon account",
+      `<p>Hello ${created.name},</p>
+       <p>An account was created for you on Beacon (${formatRole(created.role)}).</p>
+       <p>Sign in at <a href="${appUrl}/login">${appUrl}/login</a> with this email and the temporary password your administrator shared, then set a new password.</p>
+       <p>If you did not expect this message, contact your Beacon admin.</p>`,
+    );
+
     return json({ user: { id: created.id, email: created.email } }, 201);
   } catch (error) {
     return errorResponse(error);

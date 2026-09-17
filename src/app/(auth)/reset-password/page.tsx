@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { resetPasswordAction } from "@/app/(auth)/actions";
-import { CREDENTIAL_HINT } from "@/lib/password";
+import { CREDENTIAL_HINT } from "@/lib/password-policy";
 import { toast } from "sonner";
 
 function ResetForm() {

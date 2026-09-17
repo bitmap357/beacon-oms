@@ -114,6 +114,7 @@ export type ReportRecord = {
   authorName: string;
   content: Record<string, unknown>;
   beaconLogoDataUrl?: string;
+  organizationLogoDataUrl?: string;
   facilityLogoDataUrl?: string;
 };
 
@@ -265,18 +266,26 @@ export function reportHtml(report: ReportRecord) {
     );
   }
 
+  const organization = report.organizationLogoDataUrl
+    ? `<img class="logo" src="${escapeHtml(report.organizationLogoDataUrl)}" alt="${escapeHtml(report.organizationName)}" />`
+    : `<div class="logo-slot" aria-hidden="true"></div>`;
   const beacon = report.beaconLogoDataUrl
-    ? `<img class="logo" src="${escapeHtml(report.beaconLogoDataUrl)}" alt="Beacon" />`
+    ? `<img class="logo logo-beacon" src="${escapeHtml(report.beaconLogoDataUrl)}" alt="Beacon" />`
     : `<div class="logo-fallback">Beacon</div>`;
   const facility = report.facilityLogoDataUrl
     ? `<img class="logo" src="${escapeHtml(report.facilityLogoDataUrl)}" alt="${escapeHtml(report.facilityName)}" />`
-    : "";
+    : `<div class="logo-slot" aria-hidden="true"></div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8" />
   <style>
     body { font-family: Calibri, "Segoe UI", Arial, sans-serif; color: #1C2430; font-size: 11pt; line-height: 1.45; margin: 0; }
-    .masthead { display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 3px solid #0B3BA8; padding-bottom: 12px; margin-bottom: 18px; }
-    .logo, .logo-fallback { max-height: 56px; max-width: 180px; object-fit: contain; }
+    .masthead { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; border-bottom: 3px solid #0B3BA8; padding-bottom: 12px; margin-bottom: 18px; }
+    .masthead-left { justify-self: start; }
+    .masthead-center { justify-self: center; }
+    .masthead-right { justify-self: end; }
+    .logo, .logo-fallback { max-height: 56px; max-width: 160px; object-fit: contain; }
+    .logo-beacon { max-width: 180px; }
+    .logo-slot { width: 1px; height: 56px; }
     .logo-fallback { font-family: Cambria, Georgia, serif; font-size: 18pt; color: #0B3BA8; font-weight: 700; }
     .kicker { color: #5B6472; font-size: 9pt; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px; text-align: center; }
     h1 { font-family: Cambria, Georgia, serif; font-size: 22pt; color: #0B3BA8; letter-spacing: 0.06em; text-align: center; margin: 0 0 8px; }
@@ -293,7 +302,7 @@ export function reportHtml(report: ReportRecord) {
     table.data td { border: 1px solid #D9DDE6; padding: 6px 8px; vertical-align: top; font-size: 9.5pt; }
     table.data tbody tr:nth-child(even) td { background: #F7F5EF; }
   </style></head><body>
-  <header class="masthead">${beacon}${facility}</header>
+  <header class="masthead"><div class="masthead-left">${organization}</div><div class="masthead-center">${beacon}</div><div class="masthead-right">${facility}</div></header>
   <p class="kicker">Beacon operations management system</p>
   <h1>${escapeHtml(reportTitleFor(report.type))}</h1>
   <p class="lede">${escapeHtml(report.facilityName)} · ${escapeHtml(report.organizationName)}<br/>Report date ${escapeHtml(formatDate(report.date))} · Prepared by ${escapeHtml(report.authorName)}</p>

@@ -48,6 +48,20 @@
   --motion-duration-enter: 220ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Subtle elevation — navy/ink depth, thin highlight edge (not neumorphism) */
+  --shadow-surface: 0 1px 0 rgba(28, 36, 48, 0.04), 0 8px 24px rgba(12, 24, 48, 0.04);
+  --shadow-raised: 0 1px 0 rgba(28, 36, 48, 0.05), 0 4px 10px rgba(12, 24, 48, 0.05),
+    0 14px 32px rgba(12, 24, 48, 0.07);
+  --shadow-button: 0 1px 0 rgba(11, 59, 168, 0.38), 0 2px 6px rgba(11, 59, 168, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --shadow-button-hover: 0 2px 0 rgba(11, 59, 168, 0.32), 0 6px 16px rgba(21, 88, 214, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  --shadow-button-active: inset 0 2px 5px rgba(8, 40, 110, 0.38);
+  --shadow-secondary: 0 1px 0 rgba(28, 36, 48, 0.04), 0 2px 6px rgba(12, 24, 48, 0.04),
+    inset 0 1px 0 rgba(255, 253, 248, 0.85);
+  --shadow-secondary-hover: 0 1px 0 rgba(28, 36, 48, 0.05), 0 4px 12px rgba(12, 24, 48, 0.07),
+    inset 0 1px 0 rgba(255, 253, 248, 0.9);
+  --shadow-secondary-active: inset 0 2px 4px rgba(28, 36, 48, 0.1);
   color-scheme: light;
 }
 
@@ -79,6 +93,19 @@
   --accent: #152445;
   --accent-foreground: #8eb4ff;
   --destructive: #f3c6c6;
+  --shadow-surface: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 10px rgba(0, 0, 0, 0.28),
+    0 14px 32px rgba(0, 0, 0, 0.4);
+  --shadow-button: 0 1px 0 rgba(0, 0, 0, 0.35), 0 2px 6px rgba(61, 124, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --shadow-button-hover: 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 16px rgba(61, 124, 255, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --shadow-button-active: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+  --shadow-secondary: 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-secondary-hover: 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-secondary-active: inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
@@ -323,6 +350,25 @@ code,
   background-color: color-mix(in srgb, var(--brand) 12%, transparent);
 }
 
+/* Shared elevation for cards / tiles / panels */
+.surface-3d {
+  box-shadow: var(--shadow-surface);
+}
+.surface-3d-lift {
+  transition:
+    box-shadow var(--motion-duration) var(--motion-ease-out),
+    transform var(--motion-duration) var(--motion-ease-out),
+    border-color var(--motion-duration) var(--motion-ease-out);
+}
+.surface-3d-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-raised);
+}
+.surface-3d-lift:active {
+  transform: translateY(0) scale(0.99);
+  box-shadow: var(--shadow-surface);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .beacon-ring,
   .beacon-ring-delay,
@@ -335,6 +381,13 @@ code,
   .dialog-content,
   .stagger-enter > * {
     animation: none !important;
+  }
+
+  .surface-3d-lift:hover,
+  .surface-3d-lift:active,
+  .btn-3d:hover,
+  .btn-3d:active {
+    transform: none !important;
   }
 
   *,

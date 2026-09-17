@@ -60,7 +60,12 @@ export type NotificationType =
   | "QA_VERIFICATION_REQUIRED"
   | "HANDOVER_INITIATED"
   | "HANDOVER_COMPLETED"
-  | "REPORT_NEEDS_REVIEW";
+  | "HANDOVER_PENDING"
+  | "HANDOVER_APPROVED"
+  | "HANDOVER_REJECTED"
+  | "REPORT_NEEDS_REVIEW"
+  | "ACCOUNT_CREATED";
+export type HandoverStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type RecordSource = "NATIVE" | "LEGACY";
 export type VisitRecommendation = "NOT_DUE" | "VISIT_RECOMMENDED" | "VISIT_DUE" | "URGENT_VISIT";
 

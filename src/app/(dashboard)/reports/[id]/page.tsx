@@ -27,6 +27,7 @@ import { parseJson } from "@/lib/db-types";
 import { DeleteButton } from "@/components/record-actions";
 import { ReportStatusPill } from "@/components/ui/status-pill";
 import { FacilityLogoMark } from "@/components/facility-logo";
+import { OrganizationLogoMark } from "@/components/organization-logo";
 
 export default async function ReportDetailPage({
   params,
@@ -144,18 +145,36 @@ export default async function ReportDetailPage({
           </div>
         </dl>
       </Card>
-      <article className="overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
-        <div className="flex items-center justify-between gap-4 border-b-[3px] border-brand-deep px-5 py-4 sm:px-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/lockup.png" alt="Beacon" className="h-12 w-auto max-w-[180px] object-contain" />
-          {report.facility.logoS3Key ? (
-            <FacilityLogoMark
-              facilityId={report.facilityId}
-              hasLogo
-              name={report.facility.name}
-              size={56}
-            />
-          ) : null}
+      <article className="surface-3d overflow-hidden rounded-2xl border border-hairline bg-surface-raised">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b-[3px] border-brand-deep px-5 py-4 sm:gap-4 sm:px-8">
+          <div className="justify-self-start">
+            {report.facility.clientOrganization.logoS3Key ? (
+              <OrganizationLogoMark
+                organizationId={report.facility.clientOrganization.id}
+                hasLogo
+                name={report.facility.clientOrganization.name}
+                size={56}
+              />
+            ) : (
+              <span className="block h-14 w-px" aria-hidden />
+            )}
+          </div>
+          <div className="justify-self-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/lockup.png" alt="Beacon" className="h-12 w-auto max-w-[180px] object-contain" />
+          </div>
+          <div className="justify-self-end">
+            {report.facility.logoS3Key ? (
+              <FacilityLogoMark
+                facilityId={report.facilityId}
+                hasLogo
+                name={report.facility.name}
+                size={56}
+              />
+            ) : (
+              <span className="block h-14 w-px" aria-hidden />
+            )}
+          </div>
         </div>
         <div className="px-5 py-8 sm:px-8">
           <p className="text-center text-[11px] font-medium uppercase tracking-[0.12em] text-slate">

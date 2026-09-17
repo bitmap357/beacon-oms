@@ -76,6 +76,10 @@ export function ActivityForm({
     const date = String(formData.get("date"));
     const start = String(formData.get("startTime") || "");
     const end = String(formData.get("endTime") || "");
+    if (start && end && end <= start) {
+      toast.error("End time must be after start time");
+      return;
+    }
     const responsible = String(formData.get("responsibleUserId") || "");
     const participantIds = formData
       .getAll("participantIds")
